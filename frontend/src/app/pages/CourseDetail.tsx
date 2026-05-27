@@ -1,17 +1,26 @@
+import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router';
-import { courses } from '../data/courses';
-import { sectionQuizzes, finalQuizzes } from '../data/quizzes';
+
+import {
+  getCourseById,
+  getCourseSections,
+  getSectionQuiz,
+  getFinalQuiz,
+} from '../services/database';
+
+import type { Course, SectionQuiz, FinalQuiz } from '../services/database';
+
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Badge } from '../components/ui/badge';
 import { Quiz } from '../components/Quiz';
 import { useCart } from '../context/CartContext';
-import { 
-  Star, 
-  Users, 
-  Clock, 
-  BarChart, 
+
+import {
+  Star,
+  Clock,
+  BarChart,
   Award,
   FileText,
   CheckCircle,
@@ -21,15 +30,74 @@ import {
   ArrowLeft,
   ShoppingCart,
   Check,
-  BookOpen
+  BookOpen,
 } from 'lucide-react';
+
 import { ImageWithFallback } from '../components/figma/ImageWithFallback';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../components/ui/accordion';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '../components/ui/accordion';
 
 export function CourseDetail() {
   const { id } = useParams();
-  const course = courses.find((c) => c.id === id);
+
+  const [course, setCourse] = useState<Course | null>(null);
+  const [sections, setSections] = useState<any[]>([]);
+  const [quizzes, setQuizzes] = useState<any[]>([]);
+  const [finalQuiz, setFinalQuiz] = useState<FinalQuiz | null>(null);
+  const [loading, setLoading] = useState(true);
+
   const { addToCart, isInCart } = useCart();
+
+  useEffect(() => {
+    async function loadData() {
+      if (!id) return;
+
+      try {
+        setLoading(true);
+
+        const courseData = await getCourseById(id);
+        setCourse(courseData);
+
+        const sectionData = await getCourseSections(id);
+        setSections(sectionData);
+
+        const finalQ = await getFinalQuiz(id);
+        setFinalQuiz(finalQ);
+
+        // load quizzes per section safely
+        const quizPromises = sectionData.map((section: any) =>
+          getSectionQuiz(section.id).catch(() => null)
+        );
+
+        const quizResults = await Promise.all(quizPromises);
+        setQuizzes(quizResults.filter(Boolean));
+      } catch (err) {
+        console.error('Failed to load course:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadData();
+  }, [id]);
+
+  const inCart = course ? isInCart(course.id) : false;
+
+  const handleAddToCart = () => {
+    if (course) addToCart(course);
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        Loading course...
+      </div>
+    );
+  }
 
   if (!course) {
     return (
@@ -44,56 +112,9 @@ export function CourseDetail() {
     );
   }
 
-  const curriculum = [
-    {
-      title: 'Getting Started',
-      lessons: [
-        'Introduction to the Course',
-        'Setting Up Your Environment',
-        'Course Resources and Materials',
-        'How to Get the Most Out of This Course'
-      ]
-    },
-    {
-      title: 'Fundamentals',
-      lessons: [
-        'Core Concepts Overview',
-        'Understanding the Basics',
-        'Hands-on Practice Session',
-        'Common Patterns and Best Practices'
-      ]
-    },
-    {
-      title: 'Advanced Topics',
-      lessons: [
-        'Deep Dive into Advanced Features',
-        'Real-World Applications',
-        'Case Studies and Examples',
-        'Optimization Techniques'
-      ]
-    },
-    {
-      title: 'Final Project',
-      lessons: [
-        'Project Requirements and Planning',
-        'Building Your Project',
-        'Testing and Debugging',
-        'Final Presentation and Review'
-      ]
-    }
-  ];
-
-  const quizzes = sectionQuizzes[course.id] || [];
-  const finalQuiz = finalQuizzes[course.id];
-  const inCart = isInCart(course.id);
-
-  const handleAddToCart = () => {
-    addToCart(course);
-  };
-
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Back Button */}
+      {/* Back */}
       <div className="bg-white border-b">
         <div className="container px-4 py-4">
           <Link to="/courses">
@@ -104,25 +125,40 @@ export function CourseDetail() {
         </div>
       </div>
 
-      {/* Hero Section */}
-      <div className="text-white py-12" style={{ backgroundImage: 'linear-gradient(to bottom right, #4F772D, #3d5a22)' }}>
+      {/* HERO */}
+      <div
+        className="text-white py-12"
+        style={{
+          backgroundImage:
+            'linear-gradient(to bottom right, #4F772D, #3d5a22)',
+        }}
+      >
         <div className="container px-4">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2">
-              <Badge className="mb-4 bg-amber-100 hover:bg-amber-100" style={{ color: '#1a3a0f' }}>{course.category}</Badge>
+              <Badge className="mb-4 bg-amber-100" style={{ color: '#1a3a0f' }}>
+                {course.category}
+              </Badge>
+
               <h1 className="text-4xl font-bold mb-4">{course.title}</h1>
-              <p className="text-xl opacity-90 mb-6">{course.description}</p>
-              
-              <div className="flex items-center gap-6 flex-wrap mb-6">
+              <p className="text-xl opacity-90 mb-6">
+                {course.description}
+              </p>
+
+              <div className="flex items-center gap-6 mb-6">
                 <div className="flex items-center gap-2">
-                  <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
-                  <span className="font-semibold">{course.rating}</span>
-                  <span className="opacity-75">({course.students.toLocaleString()} students)</span>
+                  <Star className="h-5 w-5 text-yellow-400" />
+                  <span>{course.rating}</span>
+                  <span className="opacity-75">
+                    ({course.students.toLocaleString()} students)
+                  </span>
                 </div>
+
                 <div className="flex items-center gap-2">
                   <Clock className="h-5 w-5" />
                   <span>{course.duration}</span>
                 </div>
+
                 <div className="flex items-center gap-2">
                   <BarChart className="h-5 w-5" />
                   <span>{course.level}</span>
@@ -130,52 +166,44 @@ export function CourseDetail() {
               </div>
             </div>
 
+            {/* CARD */}
             <div className="lg:col-span-1">
-              <Card className="overflow-hidden sticky top-20">
-                <div className="aspect-video relative">
+              <Card className="sticky top-20">
+                <div className="aspect-video">
                   <ImageWithFallback
                     src={course.image}
                     alt={course.title}
                     className="w-full h-full object-cover"
                   />
                 </div>
+
                 <CardContent className="p-6">
-                  <div className="text-3xl font-bold mb-4">${course.price}</div>
-                  
+                  <div className="text-3xl font-bold mb-4">
+                    ${course.price}
+                  </div>
+
                   <Link to={`/learn/${course.id}`} className="block mb-3">
-                    <Button className="w-full gap-2 bg-green-700 hover:bg-green-800" size="lg">
-                      <BookOpen className="h-5 w-5" /> Start Learning
+                    <Button className="w-full bg-green-700">
+                      <BookOpen className="h-5 w-5 mr-2" />
+                      Start Learning
                     </Button>
                   </Link>
-                  
+
                   {inCart ? (
-                    <Button className="w-full mb-3" size="lg" variant="outline" disabled>
-                      <Check className="h-5 w-5 mr-2" /> Added to Cart
+                    <Button disabled className="w-full mb-3">
+                      <Check className="h-5 w-5 mr-2" />
+                      Added to Cart
                     </Button>
                   ) : (
-                    <Button className="w-full mb-3" size="lg" variant="outline" onClick={handleAddToCart}>
-                      <ShoppingCart className="h-5 w-5 mr-2" /> Add to Cart
+                    <Button
+                      onClick={handleAddToCart}
+                      variant="outline"
+                      className="w-full mb-3"
+                    >
+                      <ShoppingCart className="h-5 w-5 mr-2" />
+                      Add to Cart
                     </Button>
                   )}
-                  
-                  <div className="mt-6 space-y-3 text-sm">
-                    <div className="flex items-center gap-3">
-                      <Award className="h-5 w-5 text-green-700" />
-                      <span>Certificate of completion</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Globe className="h-5 w-5 text-green-700" />
-                      <span>Lifetime access</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Smartphone className="h-5 w-5 text-green-700" />
-                      <span>Access on mobile and desktop</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Trophy className="h-5 w-5 text-green-700" />
-                      <span>Assignments and projects</span>
-                    </div>
-                  </div>
                 </CardContent>
               </Card>
             </div>
@@ -183,223 +211,104 @@ export function CourseDetail() {
         </div>
       </div>
 
-      {/* Course Content */}
+      {/* CONTENT */}
       <div className="container px-4 py-12">
-        <div className="max-w-4xl">
-          <Tabs defaultValue="overview" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="curriculum">Curriculum</TabsTrigger>
-              <TabsTrigger value="quizzes">Quizzes</TabsTrigger>
-            </TabsList>
+        <Tabs defaultValue="overview">
+          <TabsList className="grid grid-cols-3 w-full">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="curriculum">Curriculum</TabsTrigger>
+            <TabsTrigger value="quizzes">Quizzes</TabsTrigger>
+          </TabsList>
 
-            <TabsContent value="overview" className="mt-6">
-              <Card>
-                <CardContent className="p-6">
-                  <h3 className="text-2xl font-bold mb-4">What you'll learn</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-8">
-                    <div className="flex gap-3">
-                      <CheckCircle className="h-5 w-5 text-green-700 flex-shrink-0 mt-0.5" />
-                      <span>Master the fundamentals and advanced concepts</span>
-                    </div>
-                    <div className="flex gap-3">
-                      <CheckCircle className="h-5 w-5 text-green-700 flex-shrink-0 mt-0.5" />
-                      <span>Build real-world projects from scratch</span>
-                    </div>
-                    <div className="flex gap-3">
-                      <CheckCircle className="h-5 w-5 text-green-700 flex-shrink-0 mt-0.5" />
-                      <span>Learn industry best practices and techniques</span>
-                    </div>
-                    <div className="flex gap-3">
-                      <CheckCircle className="h-5 w-5 text-green-700 flex-shrink-0 mt-0.5" />
-                      <span>Get hands-on experience with practical exercises</span>
-                    </div>
+          {/* OVERVIEW */}
+          <TabsContent value="overview">
+            <Card>
+              <CardContent className="p-6">
+                <h3 className="text-2xl font-bold mb-4">
+                  What you'll learn
+                </h3>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex gap-2">
+                    <CheckCircle className="text-green-700" />
+                    Master fundamentals
                   </div>
-
-                  <h3 className="text-2xl font-bold mb-4">Course Details</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                    <div>
-                      <div className="text-gray-600 text-sm mb-1">Duration</div>
-                      <div className="font-semibold">{course.duration}</div>
-                    </div>
-                    <div>
-                      <div className="text-gray-600 text-sm mb-1">Lessons</div>
-                      <div className="font-semibold">{course.lessons} lectures</div>
-                    </div>
-                    <div>
-                      <div className="text-gray-600 text-sm mb-1">Level</div>
-                      <div className="font-semibold">{course.level}</div>
-                    </div>
-                    <div>
-                      <div className="text-gray-600 text-sm mb-1">Last Updated</div>
-                      <div className="font-semibold">{course.lastUpdated}</div>
-                    </div>
+                  <div className="flex gap-2">
+                    <CheckCircle className="text-green-700" />
+                    Build real projects
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-                  <h3 className="text-2xl font-bold mb-4">Description</h3>
-                  <p className="text-gray-700 leading-relaxed">
-                    {course.description} This comprehensive course is designed to take you from beginner to advanced level. 
-                    You'll learn through a combination of lectures, hands-on projects, and quizzes. Our expert instructor 
-                    will guide you through each concept with clear explanations and practical examples. By the end of this course, 
-                    you'll have the skills and confidence to apply what you've learned in real-world scenarios.
-                  </p>
-                </CardContent>
-              </Card>
-            </TabsContent>
+          {/* CURRICULUM */}
+          <TabsContent value="curriculum">
+            <Card>
+              <CardContent className="p-6">
+                <h3 className="text-2xl font-bold mb-4">
+                  Course Curriculum
+                </h3>
 
-            <TabsContent value="curriculum" className="mt-6">
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-2xl font-bold">Course Curriculum</h3>
-                    <div className="text-sm text-gray-600">
-                      {curriculum.length} sections • {course.lessons} lectures • {course.duration}
-                    </div>
-                  </div>
-                  
-                  <Accordion type="single" collapsible className="w-full">
-                    {curriculum.map((section, index) => (
-                      <AccordionItem key={index} value={`section-${index}`}>
-                        <AccordionTrigger className="hover:no-underline">
-                          <div className="flex items-center justify-between w-full pr-4">
-                            <div className="flex items-center gap-3">
-                              <FileText className="h-5 w-5 text-green-700" />
-                              <span className="font-semibold">Section {index + 1}: {section.title}</span>
-                              {index === 0 && (
-                                <Badge className="ml-2" style={{ backgroundColor: '#BED784', color: 'white' }}>
-                                  FREE
-                                </Badge>
-                              )}
-                            </div>
-                            <span className="text-sm text-gray-600">{section.lessons.length} lessons</span>
-                          </div>
-                        </AccordionTrigger>
-                        <AccordionContent>
-                          <div className="space-y-2 pl-8 pt-2">
-                            {index === 0 && (
-                              <div className="mb-4 p-3 rounded-lg border-2" style={{ backgroundColor: '#e9f5e1', borderColor: '#BED784' }}>
-                                <div className="flex items-center gap-2 text-sm font-medium" style={{ color: '#1a3a0f' }}>
-                                  <CheckCircle className="h-4 w-4" />
-                                  <span>This section is FREE to preview</span>
-                                </div>
-                              </div>
-                            )}
-                            {section.lessons.map((lesson, lessonIndex) => (
-                              <div key={lessonIndex} className="flex items-center gap-3 py-2">
-                                <CheckCircle className="h-4 w-4 text-gray-400" />
-                                <span className="text-sm">{lesson}</span>
-                                {index === 0 && (
-                                  <span className="text-xs px-2 py-0.5 rounded" style={{ backgroundColor: '#e9f5e1', color: '#1a3a0f' }}>
-                                    Free
-                                  </span>
-                                )}
-                              </div>
-                            ))}
-                            {quizzes[index] && (
-                              <div className="mt-4 p-3 bg-amber-50 rounded-lg border border-amber-200">
-                                <div className="flex items-center gap-2 text-sm text-green-800">
-                                  <Trophy className="h-4 w-4" />
-                                  <span className="font-medium">Section Quiz: {quizzes[index].questions.length} questions</span>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </AccordionContent>
-                      </AccordionItem>
-                    ))}
-                    
-                    {finalQuiz && (
-                      <AccordionItem value="final-quiz">
-                        <AccordionTrigger className="hover:no-underline">
-                          <div className="flex items-center justify-between w-full pr-4">
-                            <div className="flex items-center gap-3">
-                              <Trophy className="h-5 w-5 text-green-700" />
-                              <span className="font-semibold">Final Course Test</span>
-                            </div>
-                            <span className="text-sm text-gray-600">{finalQuiz.questions.length} questions</span>
-                          </div>
-                        </AccordionTrigger>
-                        <AccordionContent>
-                          <div className="pl-8 pt-2">
-                            <p className="text-sm text-gray-600 mb-3">
-                              Complete this comprehensive test to demonstrate your understanding of all course material.
-                            </p>
-                            <div className="p-3 bg-green-50 rounded-lg border border-green-200">
-                              <div className="flex items-center gap-2 text-sm text-green-800">
-                                <Award className="h-4 w-4" />
-                                <span className="font-medium">Pass this test to earn your certificate of completion</span>
-                              </div>
-                            </div>
-                          </div>
-                        </AccordionContent>
-                      </AccordionItem>
-                    )}
-                  </Accordion>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="quizzes" className="mt-6">
-              <div className="space-y-6">
-                <Card>
-                  <CardContent className="p-6">
-                    <h3 className="text-2xl font-bold mb-2">Course Quizzes</h3>
-                    <p className="text-gray-600 mb-6">Test your knowledge with section quizzes and a final comprehensive test.</p>
-                    
-                    {quizzes.length > 0 ? (
-                      <div className="space-y-4">
-                        {quizzes.map((quiz, index) => (
-                          <div key={quiz.sectionId} className="border rounded-lg p-4">
-                            <h4 className="font-semibold mb-2">Section {index + 1} Quiz: {quiz.sectionTitle}</h4>
-                            <p className="text-sm text-gray-600 mb-4">{quiz.questions.length} questions</p>
-                            <details className="group">
-                              <summary className="cursor-pointer text-green-700 font-medium hover:text-green-800 list-none flex items-center gap-2">
-                                <span>Take Quiz</span>
-                                <span className="group-open:rotate-180 transition-transform">▼</span>
-                              </summary>
-                              <div className="mt-4">
-                                <Quiz 
-                                  title={`${quiz.sectionTitle} Quiz`}
-                                  questions={quiz.questions}
-                                />
-                              </div>
-                            </details>
+                <Accordion type="single" collapsible>
+                  {sections.map((section: any) => (
+                    <AccordionItem
+                      key={section.id}
+                      value={`section-${section.id}`}
+                    >
+                      <AccordionTrigger>
+                        {section.title}
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        {section.lessons?.map((lesson: any) => (
+                          <div
+                            key={lesson.id}
+                            className="flex gap-2 py-1"
+                          >
+                            <CheckCircle className="h-4 w-4" />
+                            {lesson.title}
                           </div>
                         ))}
-                        
-                        {finalQuiz && (
-                          <div className="border-2 border-green-200 rounded-lg p-4 bg-green-50">
-                            <div className="flex items-center gap-2 mb-2">
-                              <Trophy className="h-5 w-5 text-green-700" />
-                              <h4 className="font-semibold">Final Course Test</h4>
-                            </div>
-                            <p className="text-sm text-gray-600 mb-4">
-                              {finalQuiz.questions.length} comprehensive questions covering all course material
-                            </p>
-                            <details className="group">
-                              <summary className="cursor-pointer text-green-700 font-medium hover:text-green-800 list-none flex items-center gap-2">
-                                <span>Take Final Test</span>
-                                <span className="group-open:rotate-180 transition-transform">▼</span>
-                              </summary>
-                              <div className="mt-4">
-                                <Quiz 
-                                  title="Final Course Test"
-                                  questions={finalQuiz.questions}
-                                />
-                              </div>
-                            </details>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <p className="text-gray-500">Quizzes will be available after enrollment.</p>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
-          </Tabs>
-        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  ))}
+                </Accordion>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* QUIZZES */}
+          <TabsContent value="quizzes">
+            <Card>
+              <CardContent className="p-6">
+                <h3 className="text-2xl font-bold mb-4">
+                  Quizzes
+                </h3>
+
+                {quizzes.map((quiz: any) => (
+                  <div key={quiz.section_id} className="mb-6">
+                    <Quiz
+                      title={quiz.section_title}
+                      questions={quiz.questions}
+                    />
+                  </div>
+                ))}
+
+                {finalQuiz && (
+                  <div className="mt-8">
+                    <h4 className="font-bold mb-3">
+                      Final Quiz
+                    </h4>
+                    <Quiz
+                      title="Final Test"
+                      questions={finalQuiz.questions}
+                    />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

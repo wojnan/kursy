@@ -1,11 +1,19 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  type ReactNode,
+} from 'react';
 
+import { login as apiLogin, signup as apiSignup, type User as DbUser } from '../services/database';
+
+// ✅ Frontend User now matches DB
 interface User {
-  id: string;
+  id: number;
   name: string;
   email: string;
-  avatar?: string;
-  joinedDate: string;
+  created_at: string;
 }
 
 interface AuthContextType {
@@ -17,11 +25,20 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// 🔁 Normalize DB user → frontend user (future-proof layer)
+function mapDbUser(user: DbUser): User {
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    created_at: user.created_at,
+  };
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    // Load user from localStorage on mount
     const savedUser = localStorage.getItem('learnhub-user');
     if (savedUser) {
       setUser(JSON.parse(savedUser));
@@ -29,25 +46,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string, name?: string) => {
-    // Mock login - in a real app, this would call an API
-    const newUser: User = {
-      id: Math.random().toString(36).substr(2, 9),
-      name: name || email.split('@')[0],
-      email,
-      joinedDate: new Date().toISOString(),
-    };
-    
-    setUser(newUser);
-    localStorage.setItem('learnhub-user', JSON.stringify(newUser));
+    // Try real API login first
+    try {
+      const res = await apiLogin(email, password);
+
+      const mappedUser = mapDbUser(res.user);
+
+      setUser(mappedUser);
+      localStorage.setItem('learnhub-user', JSON.stringify(mappedUser));
+      return;
+    } catch (err) {
+      // fallback (optional dev mode)
+      console.warn('Login API failed, falling back to mock:', err);
+
+      if (!name) {
+        throw new Error('Name required for mock login fallback');
+      }
+
+      const fallbackUser: User = {
+        id: Date.now(),
+        name,
+        email,
+        created_at: new Date().toISOString(),
+      };
+
+      setUser(fallbackUser);
+      localStorage.setItem('learnhub-user', JSON.stringify(fallbackUser));
+    }
   };
 
-  const logout = () => {
+  const logout = async () => {
     setUser(null);
     localStorage.removeItem('learnhub-user');
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAuthenticated: !!user }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        login,
+        logout,
+        isAuthenticated: !!user,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -55,8 +96,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+  if (!context) {
+    throw new Error('useAuth must be used within AuthProvider');
   }
   return context;
 }

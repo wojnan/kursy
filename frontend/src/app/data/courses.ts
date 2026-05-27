@@ -1,3 +1,12 @@
+/**
+ * TEMPORARY MOCK DATA
+ *
+ * This file provides mock data while you set up your database.
+ * Once your database is ready, update components to use src/app/services/database.ts
+ *
+ * See DATABASE_MIGRATION.md for instructions on connecting to your database.
+ */
+
 export interface Course {
   id: string;
   title: string;

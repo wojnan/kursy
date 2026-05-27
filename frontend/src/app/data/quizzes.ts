@@ -1,3 +1,13 @@
+/**
+ * TEMPORARY MOCK DATA
+ *
+ * This file provides mock quiz data while you set up your database.
+ * All quiz data is now in database/seed_data.sql
+ *
+ * Once your database is ready, update components to use src/app/services/database.ts
+ * See DATABASE_MIGRATION.md for instructions.
+ */
+
 export interface QuizQuestion {
   id: string;
   question: string;
@@ -16,7 +26,7 @@ export interface FinalQuiz {
   questions: QuizQuestion[];
 }
 
-// Section quizzes (4-5 questions each)
+// Minimal mock section quizzes
 export const sectionQuizzes: Record<string, SectionQuiz[]> = {
   '1': [
     {
@@ -68,183 +78,11 @@ export const sectionQuizzes: Record<string, SectionQuiz[]> = {
           correctAnswer: 2
         }
       ]
-    },
-    {
-      sectionId: 'section-2',
-      sectionTitle: 'Fundamentals',
-      questions: [
-        {
-          id: 'q2-1',
-          question: 'Why are fundamental concepts important in any learning path?',
-          options: [
-            'They are not important',
-            'They provide the foundation for advanced topics',
-            'They are only for beginners',
-            'They waste time'
-          ],
-          correctAnswer: 1
-        },
-        {
-          id: 'q2-2',
-          question: 'What is the best way to reinforce fundamental concepts?',
-          options: [
-            'Reading alone',
-            'Watching videos only',
-            'Hands-on practice and repetition',
-            'Memorizing definitions'
-          ],
-          correctAnswer: 2
-        },
-        {
-          id: 'q2-3',
-          question: 'Which learning approach is most effective for mastering fundamentals?',
-          options: [
-            'Passive listening',
-            'Active practice and application',
-            'Speed reading',
-            'Multitasking while learning'
-          ],
-          correctAnswer: 1
-        },
-        {
-          id: 'q2-4',
-          question: 'What should you do if you don\'t understand a fundamental concept?',
-          options: [
-            'Move to advanced topics anyway',
-            'Pretend you understand',
-            'Review and seek clarification before moving forward',
-            'Ignore it completely'
-          ],
-          correctAnswer: 2
-        },
-        {
-          id: 'q2-5',
-          question: 'How do best practices benefit your learning?',
-          options: [
-            'They don\'t matter for beginners',
-            'They help you develop good habits from the start',
-            'They are only for experts',
-            'They slow down development'
-          ],
-          correctAnswer: 1
-        }
-      ]
-    },
-    {
-      sectionId: 'section-3',
-      sectionTitle: 'Advanced Topics',
-      questions: [
-        {
-          id: 'q3-1',
-          question: 'What distinguishes advanced topics from fundamentals?',
-          options: [
-            'They are easier to learn',
-            'They build upon and extend fundamental concepts',
-            'They are completely unrelated to basics',
-            'They require no prior knowledge'
-          ],
-          correctAnswer: 1
-        },
-        {
-          id: 'q3-2',
-          question: 'Why are real-world applications important in advanced learning?',
-          options: [
-            'They are not important',
-            'They help connect theory to practical use',
-            'They are only for entertainment',
-            'They complicate learning'
-          ],
-          correctAnswer: 1
-        },
-        {
-          id: 'q3-3',
-          question: 'What is the purpose of studying case studies?',
-          options: [
-            'To waste time',
-            'To learn from real-world examples and solutions',
-            'To make courses longer',
-            'To confuse students'
-          ],
-          correctAnswer: 1
-        },
-        {
-          id: 'q3-4',
-          question: 'How should you approach optimization techniques?',
-          options: [
-            'Ignore them completely',
-            'Apply them randomly',
-            'Understand when and why to use them',
-            'Use them everywhere without thinking'
-          ],
-          correctAnswer: 2
-        }
-      ]
-    },
-    {
-      sectionId: 'section-4',
-      sectionTitle: 'Final Project',
-      questions: [
-        {
-          id: 'q4-1',
-          question: 'What is the main purpose of a final project?',
-          options: [
-            'To stress students',
-            'To apply everything learned in a comprehensive way',
-            'To fill time',
-            'To grade students unfairly'
-          ],
-          correctAnswer: 1
-        },
-        {
-          id: 'q4-2',
-          question: 'Why is project planning important?',
-          options: [
-            'It\'s not important',
-            'It helps organize work and set clear goals',
-            'It\'s just paperwork',
-            'It wastes development time'
-          ],
-          correctAnswer: 1
-        },
-        {
-          id: 'q4-3',
-          question: 'What should be your approach to testing and debugging?',
-          options: [
-            'Skip testing entirely',
-            'Test only at the end',
-            'Test continuously throughout development',
-            'Let users find the bugs'
-          ],
-          correctAnswer: 2
-        },
-        {
-          id: 'q4-4',
-          question: 'How important is the final presentation of your project?',
-          options: [
-            'Not important at all',
-            'Very important - it showcases your work and communication skills',
-            'Only the code matters',
-            'Presentation is everything, code doesn\'t matter'
-          ],
-          correctAnswer: 1
-        },
-        {
-          id: 'q4-5',
-          question: 'What is the best mindset for completing a final project?',
-          options: [
-            'Rush to finish quickly',
-            'Aim for perfection only',
-            'Balance quality, learning, and timely completion',
-            'Copy someone else\'s work'
-          ],
-          correctAnswer: 2
-        }
-      ]
     }
   ]
 };
 
-// Final course quiz (comprehensive test)
+// Minimal mock final quizzes
 export const finalQuizzes: Record<string, FinalQuiz> = {
   '1': {
     courseId: '1',
@@ -292,56 +130,12 @@ export const finalQuizzes: Record<string, FinalQuiz> = {
           'They are only for advanced learners'
         ],
         correctAnswer: 1
-      },
-      {
-        id: 'final-5',
-        question: 'How should you approach learning new technologies?',
-        options: [
-          'Learn everything at once',
-          'Never learn anything new',
-          'Start with fundamentals and build gradually',
-          'Only watch tutorials'
-        ],
-        correctAnswer: 2
-      },
-      {
-        id: 'final-6',
-        question: 'What role does documentation play in development?',
-        options: [
-          'Documentation is useless',
-          'It\'s an essential resource for learning and reference',
-          'Only beginners need documentation',
-          'Documentation slows you down'
-        ],
-        correctAnswer: 1
-      },
-      {
-        id: 'final-7',
-        question: 'Why is code testing important?',
-        options: [
-          'It\'s not important',
-          'It ensures code works correctly and catches bugs early',
-          'It\'s only for large companies',
-          'It makes development slower'
-        ],
-        correctAnswer: 1
-      },
-      {
-        id: 'final-8',
-        question: 'What is the best way to stay current in web development?',
-        options: [
-          'Stop learning after one course',
-          'Continuously learn, read, and practice new technologies',
-          'Ignore industry changes',
-          'Only use old technologies'
-        ],
-        correctAnswer: 1
       }
     ]
   }
 };
 
-// Generic quizzes for other courses (reusable)
+// Generic quizzes for courses without specific quiz data
 export const getGenericSectionQuizzes = (): SectionQuiz[] => [
   {
     sectionId: 'section-1',

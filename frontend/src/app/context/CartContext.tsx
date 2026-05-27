@@ -1,5 +1,6 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
-import { Course } from '../data/courses';
+import { createContext, useContext, useState, } from 'react';
+import type { ReactNode } from 'react';
+import type { Course } from '../services/database'
 
 interface CartContextType {
   cartItems: Course[];

@@ -2,7 +2,7 @@ import { Link } from 'react-router';
 import { Star, Users, Clock } from 'lucide-react';
 import { Card, CardContent, CardFooter } from './ui/card';
 import { Badge } from './ui/badge';
-import { Course } from '../data/courses';
+import type { Course } from '../services/database'
 import { ImageWithFallback } from './figma/ImageWithFallback';
 
 interface CourseCardProps {
