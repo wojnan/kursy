@@ -15,7 +15,7 @@ import { Card, CardContent } from '../components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Badge } from '../components/ui/badge';
 import { Quiz } from '../components/Quiz';
-import { useCart } from '../context/CartContext';
+import { useCart } from '../contexts/CartContext';
 
 import {
   Star,
@@ -47,7 +47,7 @@ export function CourseDetail() {
   const [course, setCourse] = useState<Course | null>(null);
   const [sections, setSections] = useState<any[]>([]);
   const [quizzes, setQuizzes] = useState<any[]>([]);
-  const [finalQuiz, setFinalQuiz] = useState<FinalQuiz | null>(null);
+  const [finalQuiz, setFinalQuiz] = useState<FinalQuiz[]>([]);
   const [loading, setLoading] = useState(true);
 
   const { addToCart, isInCart } = useCart();
@@ -285,26 +285,33 @@ export function CourseDetail() {
                   Quizzes
                 </h3>
 
-                {quizzes.map((quiz: any) => (
-                  <div key={quiz.section_id} className="mb-6">
-                    <Quiz
-                      title={quiz.section_title}
-                      questions={quiz.questions}
-                    />
-                  </div>
-                ))}
+                
+                {quizzes.map((quiz: any, index: number) => (
+                <div
+                  key={quiz.id ?? index}
+                  className="mb-6"
+                >
+                  <Quiz
+                    title={quiz.section_title}
+                    questions={quiz.questions || []}
+                  />
+                </div>
+              ))}
+                {finalQuiz.map((quiz: any, index: number) => (
+                <div
+                  key={quiz.id ?? index}
+                  className="mt-8"
+                >
+                  <h4 className="font-bold mb-3">
+                    Final Quiz
+                  </h4>
 
-                {finalQuiz && (
-                  <div className="mt-8">
-                    <h4 className="font-bold mb-3">
-                      Final Quiz
-                    </h4>
-                    <Quiz
-                      title="Final Test"
-                      questions={finalQuiz.questions}
-                    />
-                  </div>
-                )}
+                  <Quiz
+                    title="Final Test"
+                    questions={quiz.questions || []}
+                  />
+                </div>
+              ))}
               </CardContent>
             </Card>
           </TabsContent>

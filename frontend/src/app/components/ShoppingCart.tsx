@@ -1,4 +1,4 @@
-import { useCart } from '../context/CartContext';
+import { useCart } from '../contexts/CartContext';
 import { Button } from './ui/button';
 import {
   Sheet,

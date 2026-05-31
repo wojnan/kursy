@@ -1,6 +1,6 @@
 import { Outlet } from 'react-router';
 import { Header } from './components/Header';
-import { CartProvider } from './context/CartContext';
+import { CartProvider } from './contexts/CartContext';
 
 export function Root() {
   return (

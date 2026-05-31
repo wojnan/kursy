@@ -126,12 +126,14 @@ export interface SectionQuiz {
 }
 
 
-export async function getSectionQuiz(sectionId: string): Promise<SectionQuiz> {
-  return apiRequest<SectionQuiz>(`/sections/${sectionId}/quiz`);
+export async function getSectionQuiz( sectionId: string): Promise<SectionQuiz[]> {
+
+  return apiRequest<SectionQuiz[]>( `/section-quizzes/section/${sectionId}`
+  );
 }
 
 export async function getFinalQuiz(courseId: string): Promise<FinalQuiz[]> {
-  return apiRequest<FinalQuiz[]>(`/api/final-quizzes/course/${courseId}`);
+  return apiRequest<FinalQuiz[]>(`/final-quizzes/course/${courseId}`);
 }
 
 

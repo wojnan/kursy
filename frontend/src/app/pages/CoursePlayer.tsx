@@ -1,12 +1,20 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router';
 
-import type { Course,Section,Lesson,SectionQuiz} from '../services/database';
+import type {
+  Course,
+  Section,
+  Lesson,
+  SectionQuiz
+} from '../services/database';
 
-import {getCourseById,getCourseSections,getSectionQuiz} from '../services/database';
+import {
+  getCourseById,
+  getCourseSections,
+  getSectionQuiz
+} from '../services/database';
 
 import { Button } from '../components/ui/button';
-import { Card, CardContent } from '../components/ui/card';
 import { Quiz } from '../components/Quiz';
 import { AuthModal } from '../components/AuthModal';
 import { useAuth } from '../contexts/AuthContext';
@@ -27,7 +35,9 @@ import { Progress } from '../components/ui/progress';
 export function CoursePlayer() {
   const { id } = useParams();
 
-  // ✅ FIX: guard against undefined route param
+  // ======================
+  // INVALID ID GUARD
+  // ======================
   if (!id) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -42,21 +52,29 @@ export function CoursePlayer() {
   const { hasPurchased } = usePurchase();
 
   const [course, setCourse] = useState<Course | null>(null);
-  const [sections, setSections] = useState<Section[]>([]);
-  const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
-  const [sectionQuiz, setSectionQuiz] = useState<SectionQuiz | null>(null);
 
-  const [completedSections, setCompletedSections] = useState<Set<string>>(
-    new Set()
-  );
+  // ✅ SAFE DEFAULT EMPTY ARRAY
+  const [sections, setSections] = useState<Section[]>([]);
+
+  const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
+
+  const [sectionQuiz, setSectionQuiz] = useState<SectionQuiz[]>([]);
+
+  const [completedSections, setCompletedSections] =
+    useState<Set<string>>(new Set());
 
   const [showSidebar, setShowSidebar] = useState(true);
+
   const [showAuthModal, setShowAuthModal] = useState(false);
 
   const isPurchased = hasPurchased(courseId);
 
+  // ======================
+  // ACCESS CONTROL
+  // ======================
   const canAccessSection = (index: number) => {
     if (index === 0) return true;
+
     return isAuthenticated && isPurchased;
   };
 
@@ -71,10 +89,15 @@ export function CoursePlayer() {
           getCourseSections(courseId)
         ]);
 
+        console.log('COURSE:', c);
+        console.log('SECTIONS:', s);
+
         setCourse(c);
-        setSections(s);
+
+        // ✅ SAFETY
+        setSections(Array.isArray(s) ? s : []);
       } catch (err) {
-        console.error(err);
+        console.error('Failed loading course player:', err);
       }
     }
 
@@ -82,19 +105,26 @@ export function CoursePlayer() {
   }, [courseId]);
 
   // ======================
-  // LOAD QUIZ PER SECTION
+  // LOAD QUIZ
   // ======================
   useEffect(() => {
     async function loadQuiz() {
-      if (!sections[currentSectionIndex]) return;
+      if (!sections[currentSectionIndex]) {
+        setSectionQuiz([]);
+        return;
+      }
 
       try {
         const quiz = await getSectionQuiz(
           sections[currentSectionIndex].id
         );
+
+        console.log('SECTION QUIZ:', quiz);
+
         setSectionQuiz(quiz);
-      } catch {
-        setSectionQuiz(null);
+      } catch (err) {
+        console.error('Failed loading quiz:', err);
+        setSectionQuiz([]);
       }
     }
 
@@ -102,11 +132,19 @@ export function CoursePlayer() {
   }, [currentSectionIndex, sections]);
 
   // ======================
-  // SAFE CURRENT SECTION
+  // CURRENT SECTION
   // ======================
   const currentSection: Section | undefined =
     sections[currentSectionIndex];
 
+    console.log(
+  'CURRENT SECTION:',
+  JSON.stringify(currentSection, null, 2)
+);
+
+  // ======================
+  // LOADING STATE
+  // ======================
   if (!course || !currentSection) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -117,6 +155,9 @@ export function CoursePlayer() {
 
   const totalSections = sections.length;
 
+  // ======================
+  // NAVIGATION
+  // ======================
   const handleNext = () => {
     if (currentSectionIndex < sections.length - 1) {
       const next = currentSectionIndex + 1;
@@ -143,15 +184,25 @@ export function CoursePlayer() {
     <div className="min-h-screen bg-gray-50 flex">
 
       {/* SIDEBAR */}
-      <div className={`${showSidebar ? 'w-80' : 'w-0'} bg-white border-r overflow-hidden`}>
+      <div
+        className={`${
+          showSidebar ? 'w-80' : 'w-0'
+        } bg-white border-r overflow-hidden`}
+      >
         <div className="p-4 border-b">
           <h2 className="font-bold">{course.title}</h2>
+
           <Progress
-            value={(currentSectionIndex + 1) / totalSections * 100}
+            value={
+              totalSections
+                ? ((currentSectionIndex + 1) / totalSections) * 100
+                : 0
+            }
           />
         </div>
 
-        {sections.map((section: Section, i: number) => (
+        {/* SAFE MAP */}
+        {(sections || []).map((section: Section, i: number) => (
           <button
             key={section.id}
             onClick={() => handleSectionClick(i)}
@@ -163,6 +214,7 @@ export function CoursePlayer() {
               ) : (
                 <Lock className="h-4 w-4 text-gray-400" />
               )}
+
               Section {i + 1}: {section.title}
             </div>
           </button>
@@ -172,6 +224,7 @@ export function CoursePlayer() {
       {/* MAIN */}
       <div className="flex-1 flex flex-col">
 
+        {/* TOP BAR */}
         <div className="p-4 border-b bg-white flex justify-between">
           <Button onClick={() => setShowSidebar(!showSidebar)}>
             {showSidebar ? <X /> : <List />}
@@ -182,6 +235,7 @@ export function CoursePlayer() {
           </span>
         </div>
 
+        {/* CONTENT */}
         <div className="p-8 max-w-4xl mx-auto w-full">
 
           <h1 className="text-3xl font-bold mb-6">
@@ -189,66 +243,86 @@ export function CoursePlayer() {
           </h1>
 
           {/* LESSONS */}
-          {currentSection.lessons.map((lesson: Lesson) => (
-            <div key={lesson.id} className="mb-10">
-              <h2 className="text-xl font-bold">{lesson.title}</h2>
-              <p className="text-sm text-gray-500">{lesson.duration}</p>
+          {(currentSection.lessons || []).map(
+            (lesson: Lesson) => (
+              <div key={lesson.id} className="mb-10">
 
-              {lesson.content.map((block, i: number) => (
-                <div key={i} className="mt-2">
-                  {block.type === 'text' && (
-                    <p>{block.value as string}</p>
-                  )}
+                <h2 className="text-xl font-bold">
+                  {lesson.title}
+                </h2>
 
-                  {block.type === 'heading' && (
-                    <h3 className="font-bold">
-                      {block.value as string}
-                    </h3>
-                  )}
+                <p className="text-sm text-gray-500">
+                  {lesson.duration}
+                </p>
 
-                  {block.type === 'list' && (
-                    <ul className="list-disc pl-6">
-                      {(block.value as string[]).map((item, j) => (
-                        <li key={j}>{item}</li>
-                      ))}
-                    </ul>
-                  )}
+                {/* SAFE CONTENT */}
+                {(lesson.content || []).map((block, i: number) => (
+                  <div key={i} className="mt-2">
 
-                  {block.type === 'code' && (
-                    <pre className="bg-black text-white p-3 rounded">
-                      {block.value as string}
-                    </pre>
-                  )}
-                </div>
-              ))}
-            </div>
-          ))}
+                    {block.type === 'text' && (
+                      <p>{block.value as string}</p>
+                    )}
+
+                    {block.type === 'heading' && (
+                      <h3 className="font-bold">
+                        {block.value as string}
+                      </h3>
+                    )}
+
+                    {block.type === 'list' && (
+                      <ul className="list-disc pl-6">
+                        {Array.isArray(block.value) &&
+                          block.value.map((item, j) => (
+                            <li key={j}>{item}</li>
+                          ))}
+                      </ul>
+                    )}
+
+                    {block.type === 'code' && (
+                      <pre className="bg-black text-white p-3 rounded">
+                        {block.value as string}
+                      </pre>
+                    )}
+
+                  </div>
+                ))}
+              </div>
+            )
+          )}
 
           {/* QUIZ */}
-          {sectionQuiz && (
+          {sectionQuiz.map((quiz) => (
             <Quiz
-              title="Section Quiz"
-              questions={sectionQuiz.questions}
+              key={quiz.id}
+              title={quiz.section_title || 'Section Quiz'}
+              questions={quiz.questions || []}
             />
-          )}
+          ))}
 
           {/* NAVIGATION */}
           <div className="flex justify-between mt-10">
-            <Button onClick={handlePrev} disabled={currentSectionIndex === 0}>
+
+            <Button
+              onClick={handlePrev}
+              disabled={currentSectionIndex === 0}
+            >
               Previous
             </Button>
 
             <Button
               onClick={handleNext}
-              disabled={currentSectionIndex === totalSections - 1}
+              disabled={
+                currentSectionIndex === totalSections - 1
+              }
             >
               Next
             </Button>
-          </div>
 
+          </div>
         </div>
       </div>
 
+      {/* AUTH MODAL */}
       <AuthModal
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}

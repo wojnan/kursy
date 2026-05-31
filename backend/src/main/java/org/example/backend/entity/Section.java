@@ -2,6 +2,7 @@ package org.example.backend.entity;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "sections")
@@ -22,6 +23,10 @@ public class Section {
 
     @Column(name = "created_at", insertable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    // NOT stored in DB - manually populated in service
+    @Transient
+    private List<Lesson> lessons;
 
     // Constructors
     public Section() {}
@@ -63,5 +68,14 @@ public class Section {
 
     public LocalDateTime getCreatedAt() {
         return createdAt;
+    }
+
+    // Lessons (manually injected)
+    public List<Lesson> getLessons() {
+        return lessons;
+    }
+
+    public void setLessons(List<Lesson> lessons) {
+        this.lessons = lessons;
     }
 }
