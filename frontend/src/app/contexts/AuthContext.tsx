@@ -6,26 +6,58 @@ import {
   type ReactNode,
 } from 'react';
 
-import { login as apiLogin, signup as apiSignup, type User as DbUser } from '../services/database';
+import {
+  login as apiLogin,
+  signup as apiSignup,
+  loginWithGoogle as apiGoogleLogin,
+  type User as DbUser,
+} from '../services/database';
 
-// ✅ Frontend User now matches DB
-interface User {
+/* =========================
+   TYPES
+========================= */
+
+export interface User {
   id: number;
   name: string;
   email: string;
   created_at: string;
 }
 
+interface GoogleProfile {
+  sub: string;
+  name: string;
+  email: string;
+  picture?: string;
+}
+
+interface AuthResponse {
+  user: DbUser;
+  token: string;
+}
+
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string, name?: string) => Promise<void>;
-  logout: () => void;
+  token: string | null;
   isAuthenticated: boolean;
+
+  login: (email: string, password: string) => Promise<void>;
+  signup: (email: string, password: string, name: string) => Promise<void>;
+
+  loginWithGoogleProfile: (profile: GoogleProfile) => Promise<void>;
+  logout: () => void;
 }
+
+/* =========================
+   CONTEXT
+========================= */
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// 🔁 Normalize DB user → frontend user (future-proof layer)
+/* =========================
+   MAPPERS
+========================= */
+
 function mapDbUser(user: DbUser): User {
   return {
     id: user.id,
@@ -35,58 +67,111 @@ function mapDbUser(user: DbUser): User {
   };
 }
 
+/* =========================
+   PROVIDER
+========================= */
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
 
+  /* Hydrate auth state */
   useEffect(() => {
     const savedUser = localStorage.getItem('learnhub-user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
+    const savedToken = localStorage.getItem('token');
+
+    if (savedUser) setUser(JSON.parse(savedUser));
+    if (savedToken) setToken(savedToken);
   }, []);
 
-  const login = async (email: string, password: string, name?: string) => {
-    // Try real API login first
+  const saveAuth = (user: User, token?: string) => {
+    setUser(user);
+    localStorage.setItem('learnhub-user', JSON.stringify(user));
+
+    if (token) {
+      setToken(token);
+      localStorage.setItem('token', token);
+    }
+  };
+
+  /* =========================
+     EMAIL/PASSWORD LOGIN
+  ========================= */
+
+  const login = async (email: string, password: string) => {
+    const res = (await apiLogin(email, password)) as AuthResponse;
+
+    const mappedUser = mapDbUser(res.user);
+
+    saveAuth(mappedUser, res.token);
+  };
+
+  const signup = async (email: string, password: string, name: string) => {
+    const res = (await apiSignup(email, password, name)) as AuthResponse;
+
+    const mappedUser = mapDbUser(res.user);
+
+    saveAuth(mappedUser, res.token);
+  };
+
+  /* =========================
+     GOOGLE OAUTH LOGIN
+  ========================= */
+
+  const loginWithGoogleProfile = async (profile: GoogleProfile) => {
     try {
-      const res = await apiLogin(email, password);
+     
+      const res = await apiGoogleLogin({
+        googleId: profile.sub,
+        email: profile.email,
+        name: profile.name
+      });
 
       const mappedUser = mapDbUser(res.user);
 
-      setUser(mappedUser);
-      localStorage.setItem('learnhub-user', JSON.stringify(mappedUser));
-      return;
-    } catch (err) {
-      // fallback (optional dev mode)
-      console.warn('Login API failed, falling back to mock:', err);
+      saveAuth(mappedUser, res.token);
+    } catch (error) {
+      console.warn('Google login backend failed, using fallback:', error);
 
-      if (!name) {
-        throw new Error('Name required for mock login fallback');
-      }
-
+      // ⚠️ fallback for dev only
       const fallbackUser: User = {
-        id: Date.now(),
-        name,
-        email,
+        id: Number(profile.sub.replace(/\D/g, '').slice(0, 9)) || Date.now(),
+        name: profile.name,
+        email: profile.email,
         created_at: new Date().toISOString(),
       };
 
-      setUser(fallbackUser);
-      localStorage.setItem('learnhub-user', JSON.stringify(fallbackUser));
+      saveAuth(fallbackUser);
     }
   };
 
-  const logout = async () => {
+  /* =========================
+     LOGOUT
+  ========================= */
+
+  const logout = () => {
     setUser(null);
+    setToken(null);
+
     localStorage.removeItem('learnhub-user');
+    localStorage.removeItem('token');
   };
+
+  /* =========================
+     CONTEXT VALUE
+  ========================= */
 
   return (
     <AuthContext.Provider
       value={{
         user,
-        login,
-        logout,
+        token,
         isAuthenticated: !!user,
+
+        login,
+        signup,
+        loginWithGoogleProfile,
+        logout,
       }}
     >
       {children}
@@ -94,10 +179,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
+/* =========================
+   HOOK
+========================= */
+
 export function useAuth() {
   const context = useContext(AuthContext);
+
   if (!context) {
     throw new Error('useAuth must be used within AuthProvider');
   }
+
   return context;
 }

@@ -134,13 +134,23 @@ export function CoursePlayer() {
   // ======================
   // CURRENT SECTION
   // ======================
-  const currentSection: Section | undefined =
+    const currentSection: Section | undefined =
     sections[currentSectionIndex];
 
-    console.log(
-  'CURRENT SECTION:',
-  JSON.stringify(currentSection, null, 2)
-);
+  console.log(
+    'CURRENT SECTION:',
+    JSON.stringify(currentSection, null, 2)
+  );
+
+  console.log(
+    'LESSON CONTENT RAW',
+    currentSection?.lessons?.[0]?.content
+  );
+
+  console.log(
+    'FIRST BLOCK RAW',
+    currentSection?.lessons?.[0]?.content?.[0]
+  );
 
   // ======================
   // LOADING STATE
@@ -242,53 +252,69 @@ export function CoursePlayer() {
             {currentSection.title}
           </h1>
 
-          {/* LESSONS */}
-          {(currentSection.lessons || []).map(
-            (lesson: Lesson) => (
-              <div key={lesson.id} className="mb-10">
+        
 
-                <h2 className="text-xl font-bold">
-                  {lesson.title}
-                </h2>
+         {/* LESSONS */}
 
-                <p className="text-sm text-gray-500">
-                  {lesson.duration}
-                </p>
+          {(currentSection.lessons || []).map((lesson: any) => (
+            <div key={lesson.id} className="mb-10">
+              <h2 className="text-xl font-bold">
+                {lesson.title}
+              </h2>
 
-                {/* SAFE CONTENT */}
-                {(lesson.content || []).map((block, i: number) => (
-                  <div key={i} className="mt-2">
+              <p className="text-sm text-gray-500">
+                {lesson.duration}
+              </p>
 
-                    {block.type === 'text' && (
-                      <p>{block.value as string}</p>
-                    )}
+              {(lesson.content || []).map((block: any) => {
+                const type =
+                  block.contentType ||
+                  block.content_type ||
+                  block.type;
 
-                    {block.type === 'heading' && (
-                      <h3 className="font-bold">
-                        {block.value as string}
+                const value =
+                  block.contentValue ||
+                  block.content_value ||
+                  block.value;
+
+                return (
+                  <div
+                    key={block.id ?? Math.random()}
+                    className="mt-4"
+                  >
+                    {type === 'heading' && (
+                      <h3 className="text-lg font-semibold">
+                        {value}
                       </h3>
                     )}
 
-                    {block.type === 'list' && (
-                      <ul className="list-disc pl-6">
-                        {Array.isArray(block.value) &&
-                          block.value.map((item, j) => (
-                            <li key={j}>{item}</li>
-                          ))}
-                      </ul>
+                    {type === 'text' && (
+                      <p className="leading-7">
+                        {value}
+                      </p>
                     )}
 
-                    {block.type === 'code' && (
-                      <pre className="bg-black text-white p-3 rounded">
-                        {block.value as string}
+                    {type === 'code' && (
+                      <pre className="bg-black text-white p-4 rounded overflow-auto">
+                        <code>{value}</code>
                       </pre>
                     )}
 
+                    {type === 'list' && (
+                      <ul className="list-disc pl-6">
+                        {(typeof value === 'string'
+                          ? JSON.parse(value)
+                          : value
+                        ).map((item: string, idx: number) => (
+                          <li key={idx}>{item}</li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
-                ))}
-              </div>
-            )
-          )}
+                );
+              })}
+            </div>
+          ))}
 
           {/* QUIZ */}
           {sectionQuiz.map((quiz) => (

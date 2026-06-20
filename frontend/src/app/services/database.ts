@@ -1,20 +1,29 @@
 
-
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8081/api';
 
 // Generic fetch wrapper with error handling
-async function apiRequest<T>(endpoint: string, options?: RequestInit): Promise<T> {
+async function apiRequest<T>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<T> {
   try {
+    const token = localStorage.getItem('token');
+
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      ...options,
       headers: {
         'Content-Type': 'application/json',
-        ...options?.headers,
+
+        // 🔥 attach JWT token if exists
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+
+        ...options.headers,
       },
-      ...options,
     });
 
     if (!response.ok) {
-      throw new Error(`API Error: ${response.statusText}`);
+      const errorText = await response.text();
+      throw new Error(errorText || `API Error: ${response.status}`);
     }
 
     return await response.json();
@@ -151,6 +160,22 @@ export interface User {
 export interface AuthResponse {
   user: User;
   token: string;
+}
+
+export interface GoogleLoginRequest {
+  googleId: string;
+  email: string;
+  name: string;
+  avatar?: string;
+}
+
+export async function loginWithGoogle(
+  data: GoogleLoginRequest
+): Promise<AuthResponse> {
+  return apiRequest<AuthResponse>('/auth/google', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
 }
 
 export async function login(email: string, password: string): Promise<AuthResponse> {

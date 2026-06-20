@@ -10,7 +10,7 @@ interface QuizProps {
   questions: QuizQuestion[];
   onComplete?: (score: number, total: number) => void;
 }
-
+ 
 export function Quiz({ title, questions = [], onComplete }: QuizProps) {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState<number[]>([]);

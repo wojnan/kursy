@@ -125,12 +125,12 @@ export function Header() {
                 )}
               </div>
             ) : (
-              <Button 
+              <Button
                 onClick={() => setShowAuthModal(true)}
                 className="hidden sm:inline-flex gap-2 bg-green-700 hover:bg-green-800"
               >
                 <LogIn className="h-4 w-4" />
-                Log In
+                Sign In
               </Button>
             )}
 
@@ -193,12 +193,12 @@ export function Header() {
                         </Button>
                       </>
                     ) : (
-                      <Button 
+                      <Button
                         onClick={() => setShowAuthModal(true)}
                         className="w-full gap-2 bg-green-700 hover:bg-green-800"
                       >
                         <LogIn className="h-4 w-4" />
-                        Log In
+                        Sign In
                       </Button>
                     )}
                   </div>
