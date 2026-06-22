@@ -1,22 +1,16 @@
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || 'http://localhost:8081/api';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8081/api';
-
-// Generic fetch wrapper with error handling
 async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
   try {
-    const token = localStorage.getItem('token');
-
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
-
-        // 🔥 attach JWT token if exists
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-
         ...options.headers,
       },
     });
@@ -26,6 +20,10 @@ async function apiRequest<T>(
       throw new Error(errorText || `API Error: ${response.status}`);
     }
 
+    if (response.status === 204) {
+      return undefined as T;
+    }
+
     return await response.json();
   } catch (error) {
     console.error(`Database request failed for ${endpoint}:`, error);
@@ -33,9 +31,7 @@ async function apiRequest<T>(
   }
 }
 
-// ============================================
 // COURSE OPERATIONS
-// ============================================
 
 export interface Course {
   id: string;
@@ -69,9 +65,7 @@ export async function searchCourses(query: string): Promise<Course[]> {
   return apiRequest<Course[]>(`/courses/search?q=${encodeURIComponent(query)}`);
 }
 
-// ============================================
 // LESSON & SECTION OPERATIONS
-// ============================================
 
 export interface LessonContent {
   id: number;
@@ -105,14 +99,11 @@ export async function getCourseSections(courseId: string): Promise<Section[]> {
   return apiRequest<Section[]>(`/sections/course/${courseId}`);
 }
 
-
 export async function getSectionById(sectionId: string): Promise<Section> {
   return apiRequest<Section>(`/sections/${sectionId}`);
 }
 
-// ============================================
 // QUIZ OPERATIONS
-// ============================================
 
 export interface QuizQuestion {
   id: string;
@@ -134,72 +125,29 @@ export interface SectionQuiz {
   questions: QuizQuestion[];
 }
 
-
-export async function getSectionQuiz( sectionId: string): Promise<SectionQuiz[]> {
-
-  return apiRequest<SectionQuiz[]>( `/section-quizzes/section/${sectionId}`
-  );
+export async function getSectionQuiz(sectionId: string): Promise<SectionQuiz[]> {
+  return apiRequest<SectionQuiz[]>(`/section-quizzes/section/${sectionId}`);
 }
 
 export async function getFinalQuiz(courseId: string): Promise<FinalQuiz[]> {
   return apiRequest<FinalQuiz[]>(`/final-quizzes/course/${courseId}`);
 }
 
-
-// ============================================
 // USER OPERATIONS
-// ============================================
 
 export interface User {
   id: number;
   email: string;
   name: string;
-  created_at: string;
+  avatarUrl?: string;
+  createdAt?: string;
 }
 
-export interface AuthResponse {
-  user: User;
-  token: string;
+export async function getCurrentUser(): Promise<User> {
+  return apiRequest<User>('/../users/me');
 }
 
-export interface GoogleLoginRequest {
-  googleId: string;
-  email: string;
-  name: string;
-  avatar?: string;
-}
-
-export async function loginWithGoogle(
-  data: GoogleLoginRequest
-): Promise<AuthResponse> {
-  return apiRequest<AuthResponse>('/auth/google', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-}
-
-export async function login(email: string, password: string): Promise<AuthResponse> {
-  return apiRequest<AuthResponse>('/auth/login', {
-    method: 'POST',
-    body: JSON.stringify({ email, password }),
-  });
-}
-
-export async function signup(email: string, password: string, name: string): Promise<AuthResponse> {
-  return apiRequest<AuthResponse>('/auth/signup', {
-    method: 'POST',
-    body: JSON.stringify({ email, password, name }),
-  });
-}
-
-export async function logout(): Promise<void> {
-  localStorage.removeItem("token");
-}
-
-
-// ============================================
 // PURCHASE OPERATIONS
-// ============================================
 
 export interface Purchase {
   id: number;
@@ -213,21 +161,25 @@ export async function getUserPurchases(userId: number): Promise<Purchase[]> {
   return apiRequest<Purchase[]>(`/users/${userId}/purchases`);
 }
 
-export async function purchaseCourse(userId: number, courseId: string): Promise<Purchase> {
+export async function purchaseCourse(
+  userId: number,
+  courseId: string
+): Promise<Purchase> {
   return apiRequest<Purchase>('/purchases', {
     method: 'POST',
     body: JSON.stringify({ user_id: userId, course_id: courseId }),
   });
 }
 
-export async function hasPurchasedCourse(userId: number, courseId: string): Promise<boolean> {
+export async function hasPurchasedCourse(
+  userId: number,
+  courseId: string
+): Promise<boolean> {
   const purchases = await getUserPurchases(userId);
-  return purchases.some(p => p.course_id === parseInt(courseId));
+  return purchases.some((p) => p.course_id === parseInt(courseId));
 }
 
-// ============================================
 // PROGRESS TRACKING OPERATIONS
-// ============================================
 
 export interface UserProgress {
   id: number;
@@ -239,11 +191,19 @@ export interface UserProgress {
   score?: number;
 }
 
-export async function getUserProgress(userId: number, courseId: string): Promise<UserProgress[]> {
-  return apiRequest<UserProgress[]>(`/users/${userId}/progress?course_id=${courseId}`);
+export async function getUserProgress(
+  userId: number,
+  courseId: string
+): Promise<UserProgress[]> {
+  return apiRequest<UserProgress[]>(
+    `/users/${userId}/progress?course_id=${courseId}`
+  );
 }
 
-export async function markSectionComplete(userId: number, sectionId: string): Promise<UserProgress> {
+export async function markSectionComplete(
+  userId: number,
+  sectionId: string
+): Promise<UserProgress> {
   return apiRequest<UserProgress>('/progress/section', {
     method: 'POST',
     body: JSON.stringify({ user_id: userId, section_id: sectionId }),
@@ -267,9 +227,7 @@ export async function submitQuizResults(
   });
 }
 
-// ============================================
 // CART OPERATIONS
-// ============================================
 
 export interface CartItem {
   id: number;
@@ -283,14 +241,20 @@ export async function getCartItems(userId: number): Promise<CartItem[]> {
   return apiRequest<CartItem[]>(`/users/${userId}/cart`);
 }
 
-export async function addToCart(userId: number, courseId: string): Promise<CartItem> {
+export async function addToCart(
+  userId: number,
+  courseId: string
+): Promise<CartItem> {
   return apiRequest<CartItem>('/cart', {
     method: 'POST',
     body: JSON.stringify({ user_id: userId, course_id: courseId }),
   });
 }
 
-export async function removeFromCart(userId: number, courseId: string): Promise<void> {
+export async function removeFromCart(
+  userId: number,
+  courseId: string
+): Promise<void> {
   return apiRequest<void>(`/cart/${courseId}`, {
     method: 'DELETE',
     body: JSON.stringify({ user_id: userId }),

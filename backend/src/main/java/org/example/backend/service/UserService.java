@@ -45,11 +45,40 @@ public class UserService {
         return repo.save(existing);
     }
 
-    // DELETE
+
     public void delete(Long id) {
         if (!repo.existsById(id)) {
             throw new RuntimeException("User not found with id: " + id);
         }
         repo.deleteById(id);
+    }
+
+    public User findOrCreateGoogleUser(
+            String email,
+            String name,
+            String avatarUrl,
+            String providerId,
+            Boolean emailVerified
+    ) {
+        return repo.findByEmail(email)
+                .map(existing -> {
+                    existing.setName(name);
+                    existing.setAvatarUrl(avatarUrl);
+                    existing.setEmailVerified(emailVerified);
+                    existing.setProvider("google");
+                    existing.setProviderId(providerId);
+                    return repo.save(existing);
+                })
+                .orElseGet(() -> {
+                    User user = new User();
+                    user.setEmail(email);
+                    user.setName(name);
+                    user.setAvatarUrl(avatarUrl);
+                    user.setEmailVerified(emailVerified);
+                    user.setProvider("google");
+                    user.setProviderId(providerId);
+                    user.setIsActive(true);
+                    return repo.save(user);
+                });
     }
 }

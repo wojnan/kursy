@@ -285,33 +285,27 @@ export function CourseDetail() {
                   Quizzes
                 </h3>
 
-                
-                {quizzes.map((quiz: any, index: number) => (
-                <div
-                  key={quiz.id ?? index}
-                  className="mb-6"
-                >
-                  <Quiz
-                    title={quiz.section_title}
-                    questions={quiz.questions || []}
-                  />
-                </div>
-              ))}
-                {finalQuiz.map((quiz: any, index: number) => (
-                <div
-                  key={quiz.id ?? index}
-                  className="mt-8"
-                >
-                  <h4 className="font-bold mb-3">
-                    Final Quiz
-                  </h4>
+                {quizzes.flat().map((quiz: any, index: number) => (
+                  <div key={quiz.id ?? index} className="mb-6">
+                    <Quiz
+                      title={quiz.sectionTitle || quiz.section_title || 'Section Quiz'}
+                      questions={quiz.questions || []}
+                    />
+                  </div>
+                ))}
 
-                  <Quiz
-                    title="Final Test"
-                    questions={quiz.questions || []}
-                  />
-                </div>
-              ))}
+                {finalQuiz.map((quiz: any, index: number) => (
+                  <div key={quiz.id ?? index} className="mt-8">
+                    <h4 className="font-bold mb-3">
+                      Final Quiz
+                    </h4>
+
+                    <Quiz
+                      title="Final Test"
+                      questions={quiz.questions || []}
+                    />
+                  </div>
+                ))}
               </CardContent>
             </Card>
           </TabsContent>

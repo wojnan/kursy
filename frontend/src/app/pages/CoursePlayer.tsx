@@ -4,7 +4,6 @@ import { useParams } from 'react-router';
 import type {
   Course,
   Section,
-  Lesson,
   SectionQuiz
 } from '../services/database';
 
@@ -16,15 +15,11 @@ import {
 
 import { Button } from '../components/ui/button';
 import { Quiz } from '../components/Quiz';
-import { AuthModal } from '../components/AuthModal';
 import { useAuth } from '../contexts/AuthContext';
 import { usePurchase } from '../contexts/PurchaseContext';
 
 import {
-  ChevronLeft,
-  ChevronRight,
   CheckCircle,
-  BookOpen,
   List,
   X,
   Lock
@@ -35,9 +30,6 @@ import { Progress } from '../components/ui/progress';
 export function CoursePlayer() {
   const { id } = useParams();
 
-  // ======================
-  // INVALID ID GUARD
-  // ======================
   if (!id) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -48,53 +40,31 @@ export function CoursePlayer() {
 
   const courseId = id;
 
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loginWithGoogle } = useAuth();
   const { hasPurchased } = usePurchase();
 
   const [course, setCourse] = useState<Course | null>(null);
-
-  // ✅ SAFE DEFAULT EMPTY ARRAY
   const [sections, setSections] = useState<Section[]>([]);
-
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
-
   const [sectionQuiz, setSectionQuiz] = useState<SectionQuiz[]>([]);
-
-  const [completedSections, setCompletedSections] =
-    useState<Set<string>>(new Set());
-
   const [showSidebar, setShowSidebar] = useState(true);
-
-  const [showAuthModal, setShowAuthModal] = useState(false);
 
   const isPurchased = hasPurchased(courseId);
 
-  // ======================
-  // ACCESS CONTROL
-  // ======================
   const canAccessSection = (index: number) => {
     if (index === 0) return true;
-
     return isAuthenticated && isPurchased;
   };
 
-  // ======================
-  // LOAD COURSE + SECTIONS
-  // ======================
   useEffect(() => {
     async function load() {
       try {
         const [c, s] = await Promise.all([
           getCourseById(courseId),
-          getCourseSections(courseId)
+          getCourseSections(courseId),
         ]);
 
-        console.log('COURSE:', c);
-        console.log('SECTIONS:', s);
-
         setCourse(c);
-
-        // ✅ SAFETY
         setSections(Array.isArray(s) ? s : []);
       } catch (err) {
         console.error('Failed loading course player:', err);
@@ -104,57 +74,32 @@ export function CoursePlayer() {
     load();
   }, [courseId]);
 
-  // ======================
-  // LOAD QUIZ
-  // ======================
   useEffect(() => {
-    async function loadQuiz() {
-      if (!sections[currentSectionIndex]) {
-        setSectionQuiz([]);
-        return;
-      }
-
-      try {
-        const quiz = await getSectionQuiz(
-          sections[currentSectionIndex].id
-        );
-
-        console.log('SECTION QUIZ:', quiz);
-
-        setSectionQuiz(quiz);
-      } catch (err) {
-        console.error('Failed loading quiz:', err);
-        setSectionQuiz([]);
-      }
+  async function loadQuiz() {
+    if (!sections[currentSectionIndex]) {
+      setSectionQuiz([]);
+      return;
     }
 
-    loadQuiz();
-  }, [currentSectionIndex, sections]);
+    try {
+      const quiz = await getSectionQuiz(
+        sections[currentSectionIndex].id
+      );
 
-  // ======================
-  // CURRENT SECTION
-  // ======================
-    const currentSection: Section | undefined =
-    sections[currentSectionIndex];
+      console.log('QUIZ RESPONSE:', quiz);
 
-  console.log(
-    'CURRENT SECTION:',
-    JSON.stringify(currentSection, null, 2)
-  );
+      setSectionQuiz(Array.isArray(quiz) ? quiz : []);
+    } catch (err) {
+      console.error('Failed loading quiz:', err);
+      setSectionQuiz([]);
+    }
+  }
 
-  console.log(
-    'LESSON CONTENT RAW',
-    currentSection?.lessons?.[0]?.content
-  );
+  loadQuiz();
+}, [currentSectionIndex, sections]);
 
-  console.log(
-    'FIRST BLOCK RAW',
-    currentSection?.lessons?.[0]?.content?.[0]
-  );
+  const currentSection = sections[currentSectionIndex];
 
-  // ======================
-  // LOADING STATE
-  // ======================
   if (!course || !currentSection) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -165,16 +110,24 @@ export function CoursePlayer() {
 
   const totalSections = sections.length;
 
-  // ======================
-  // NAVIGATION
-  // ======================
-  const handleNext = () => {
-    if (currentSectionIndex < sections.length - 1) {
-      const next = currentSectionIndex + 1;
+  const handleLockedAccess = () => {
+    if (!isAuthenticated) {
+      loginWithGoogle();
+      return;
+    }
 
-      if (canAccessSection(next)) {
-        setCurrentSectionIndex(next);
-      }
+    alert('You need to purchase this course to access this section.');
+  };
+
+  const handleNext = () => {
+    if (currentSectionIndex >= sections.length - 1) return;
+
+    const next = currentSectionIndex + 1;
+
+    if (canAccessSection(next)) {
+      setCurrentSectionIndex(next);
+    } else {
+      handleLockedAccess();
     }
   };
 
@@ -187,13 +140,13 @@ export function CoursePlayer() {
   const handleSectionClick = (index: number) => {
     if (canAccessSection(index)) {
       setCurrentSectionIndex(index);
+    } else {
+      handleLockedAccess();
     }
   };
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-
-      {/* SIDEBAR */}
       <div
         className={`${
           showSidebar ? 'w-80' : 'w-0'
@@ -211,30 +164,30 @@ export function CoursePlayer() {
           />
         </div>
 
-        {/* SAFE MAP */}
-        {(sections || []).map((section: Section, i: number) => (
-          <button
-            key={section.id}
-            onClick={() => handleSectionClick(i)}
-            className="w-full text-left p-4 border-b"
-          >
-            <div className="flex gap-2 items-center">
-              {i === currentSectionIndex ? (
-                <CheckCircle className="h-4 w-4 text-green-600" />
-              ) : (
-                <Lock className="h-4 w-4 text-gray-400" />
-              )}
+        {sections.map((section, i) => {
+          const locked = !canAccessSection(i);
 
-              Section {i + 1}: {section.title}
-            </div>
-          </button>
-        ))}
+          return (
+            <button
+              key={section.id}
+              onClick={() => handleSectionClick(i)}
+              className="w-full text-left p-4 border-b"
+            >
+              <div className="flex gap-2 items-center">
+                {locked ? (
+                  <Lock className="h-4 w-4 text-gray-400" />
+                ) : (
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                )}
+
+                Section {i + 1}: {section.title}
+              </div>
+            </button>
+          );
+        })}
       </div>
 
-      {/* MAIN */}
       <div className="flex-1 flex flex-col">
-
-        {/* TOP BAR */}
         <div className="p-4 border-b bg-white flex justify-between">
           <Button onClick={() => setShowSidebar(!showSidebar)}>
             {showSidebar ? <X /> : <List />}
@@ -245,22 +198,14 @@ export function CoursePlayer() {
           </span>
         </div>
 
-        {/* CONTENT */}
         <div className="p-8 max-w-4xl mx-auto w-full">
-
           <h1 className="text-3xl font-bold mb-6">
             {currentSection.title}
           </h1>
 
-        
-
-         {/* LESSONS */}
-
           {(currentSection.lessons || []).map((lesson: any) => (
             <div key={lesson.id} className="mb-10">
-              <h2 className="text-xl font-bold">
-                {lesson.title}
-              </h2>
+              <h2 className="text-xl font-bold">{lesson.title}</h2>
 
               <p className="text-sm text-gray-500">
                 {lesson.duration}
@@ -278,10 +223,7 @@ export function CoursePlayer() {
                   block.value;
 
                 return (
-                  <div
-                    key={block.id ?? Math.random()}
-                    className="mt-4"
-                  >
+                  <div key={block.id ?? `${type}-${value}`} className="mt-4">
                     {type === 'heading' && (
                       <h3 className="text-lg font-semibold">
                         {value}
@@ -302,12 +244,28 @@ export function CoursePlayer() {
 
                     {type === 'list' && (
                       <ul className="list-disc pl-6">
-                        {(typeof value === 'string'
-                          ? JSON.parse(value)
-                          : value
-                        ).map((item: string, idx: number) => (
-                          <li key={idx}>{item}</li>
-                        ))}
+                        {(() => {
+                          let items: string[] = [];
+
+                          if (Array.isArray(value)) {
+                            items = value;
+                          } else if (typeof value === 'string') {
+                            try {
+                              const cleaned = value.replace(/\\"/g, '"');
+                              const parsed = JSON.parse(cleaned);
+                              items = Array.isArray(parsed) ? parsed : [value];
+                            } catch {
+                              items = value
+                                .replace(/^\[|\]$/g, '')
+                                .split(',')
+                                .map((item) => item.replace(/^"|"$/g, '').trim());
+                            }
+                          }
+
+                          return items.map((item: string, idx: number) => (
+                            <li key={idx}>{item}</li>
+                          ));
+                        })()}
                       </ul>
                     )}
                   </div>
@@ -316,7 +274,6 @@ export function CoursePlayer() {
             </div>
           ))}
 
-          {/* QUIZ */}
           {sectionQuiz.map((quiz) => (
             <Quiz
               key={quiz.id}
@@ -325,9 +282,7 @@ export function CoursePlayer() {
             />
           ))}
 
-          {/* NAVIGATION */}
           <div className="flex justify-between mt-10">
-
             <Button
               onClick={handlePrev}
               disabled={currentSectionIndex === 0}
@@ -337,22 +292,13 @@ export function CoursePlayer() {
 
             <Button
               onClick={handleNext}
-              disabled={
-                currentSectionIndex === totalSections - 1
-              }
+              disabled={currentSectionIndex === totalSections - 1}
             >
               Next
             </Button>
-
           </div>
         </div>
       </div>
-
-      {/* AUTH MODAL */}
-      <AuthModal
-        isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-      />
     </div>
   );
 }

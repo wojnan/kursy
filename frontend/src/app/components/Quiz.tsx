@@ -17,10 +17,13 @@ export function Quiz({ title, questions = [], onComplete }: QuizProps) {
   const [showResults, setShowResults] = useState(false);
   const [score, setScore] = useState(0);
 
-  // ✅ Guard: prevent crashes if empty
-  if (!questions || questions.length === 0) {
-    return <div className="p-4 text-gray-600">Loading quiz...</div>;
-  }
+ if (!questions || questions.length === 0) {
+  return (
+    <div className="p-4 text-gray-500 border rounded-lg">
+      No questions available for this quiz yet.
+    </div>
+  );
+}
 
   const handleAnswerSelect = (answerIndex: number) => {
     const newAnswers = [...selectedAnswers];

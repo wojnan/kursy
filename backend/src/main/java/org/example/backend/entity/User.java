@@ -14,9 +14,6 @@ public class User {
     @Column(nullable = false, unique = true, length = 255)
     private String email;
 
-    @Column(name = "password_hash", nullable = false, length = 255)
-    private String passwordHash;
-
     @Column(nullable = false)
     private String name;
 
@@ -31,6 +28,12 @@ public class User {
 
     @Column(name = "email_verified")
     private Boolean emailVerified = false;
+
+    @Column(name = "provider")
+    private String provider = "google";
+
+    @Column(name = "provider_id")
+    private String providerId;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -51,14 +54,8 @@ public class User {
         this.updatedAt = LocalDateTime.now();
     }
 
-    // ================= GETTERS / SETTERS =================
-
     public Long getId() {
         return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
     }
 
     public String getEmail() {
@@ -67,14 +64,6 @@ public class User {
 
     public void setEmail(String email) {
         this.email = email;
-    }
-
-    public String getPasswordHash() {
-        return passwordHash;
-    }
-
-    public void setPasswordHash(String passwordHash) {
-        this.passwordHash = passwordHash;
     }
 
     public String getName() {
@@ -105,8 +94,8 @@ public class User {
         return isActive;
     }
 
-    public void setIsActive(Boolean isActive) {
-        this.isActive = isActive;
+    public void setIsActive(Boolean active) {
+        isActive = active;
     }
 
     public Boolean getEmailVerified() {
@@ -115,6 +104,22 @@ public class User {
 
     public void setEmailVerified(Boolean emailVerified) {
         this.emailVerified = emailVerified;
+    }
+
+    public String getProvider() {
+        return provider;
+    }
+
+    public void setProvider(String provider) {
+        this.provider = provider;
+    }
+
+    public String getProviderId() {
+        return providerId;
+    }
+
+    public void setProviderId(String providerId) {
+        this.providerId = providerId;
     }
 
     public LocalDateTime getCreatedAt() {

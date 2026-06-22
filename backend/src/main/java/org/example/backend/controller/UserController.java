@@ -4,6 +4,9 @@ import org.example.backend.entity.User;
 import org.example.backend.service.UserService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.core.user.OAuth2User;
+import java.util.Map;
 
 import java.util.List;
 
@@ -44,5 +47,21 @@ public class UserController {
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         service.delete(id);
         return ResponseEntity.noContent().build();
+    }
+    @GetMapping("/me")
+    public ResponseEntity<User> me(@AuthenticationPrincipal OAuth2User oauthUser) {
+        if (oauthUser == null) {
+            return ResponseEntity.status(401).build();
+        }
+
+        User user = service.findOrCreateGoogleUser(
+                oauthUser.getAttribute("email"),
+                oauthUser.getAttribute("name"),
+                oauthUser.getAttribute("picture"),
+                oauthUser.getAttribute("sub"),
+                oauthUser.getAttribute("email_verified")
+        );
+
+        return ResponseEntity.ok(user);
     }
 }
