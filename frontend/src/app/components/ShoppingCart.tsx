@@ -1,4 +1,7 @@
 import { useCart } from '../contexts/CartContext';
+import { useAuth } from '../contexts/AuthContext';
+import { createCheckoutSession } from '../services/database';
+
 import { Button } from './ui/button';
 import {
   Sheet,
@@ -7,6 +10,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from './ui/sheet';
+
 import { ShoppingCart, X, ShoppingBag } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { ImageWithFallback } from './figma/ImageWithFallback';
@@ -14,19 +18,53 @@ import { Link } from 'react-router';
 
 export function ShoppingCartSheet() {
   const { cartItems, removeFromCart, cartTotal, clearCart } = useCart();
+  const { user, loginWithGoogle } = useAuth();
+
+  const handleCheckout = async () => {
+    try {
+      if (!user) {
+        loginWithGoogle();
+        return;
+      }
+
+      const item = cartItems[0];
+
+      if (!item) return;
+
+      const session = await createCheckoutSession({
+        userId: user.id,
+        courseId: item.id,
+        courseTitle:
+          cartItems.length === 1
+            ? item.title
+            : `${cartItems.length} Courses`,
+        amount: Math.round(cartTotal * 100),
+      });
+
+      window.location.href = session.url;
+    } catch (error) {
+      console.error('Checkout failed:', error);
+      alert('Failed to start checkout.');
+    }
+  };
 
   return (
     <Sheet>
       <SheetTrigger asChild>
         <Button variant="ghost" size="icon" className="relative">
           <ShoppingCart className="h-5 w-5" />
+
           {cartItems.length > 0 && (
-            <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0" style={{ backgroundColor: '#4F772D' }}>
+            <Badge
+              className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0"
+              style={{ backgroundColor: '#4F772D' }}
+            >
               {cartItems.length}
             </Badge>
           )}
         </Button>
       </SheetTrigger>
+
       <SheetContent className="w-full sm:max-w-lg">
         <SheetHeader>
           <SheetTitle>Shopping Cart ({cartItems.length})</SheetTitle>
@@ -36,10 +74,13 @@ export function ShoppingCartSheet() {
           {cartItems.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center text-center py-12">
               <ShoppingBag className="h-16 w-16 text-gray-300 mb-4" />
+
               <h3 className="font-semibold mb-2">Your cart is empty</h3>
+
               <p className="text-gray-600 text-sm mb-4">
                 Add courses to get started
               </p>
+
               <Link to="/courses">
                 <Button variant="outline">Browse Courses</Button>
               </Link>
@@ -60,14 +101,17 @@ export function ShoppingCartSheet() {
                           className="w-full h-full object-cover"
                         />
                       </div>
+
                       <div className="flex-1 min-w-0">
                         <h4 className="font-semibold text-sm line-clamp-2 mb-1">
                           {item.title}
                         </h4>
+
                         <p className="text-sm text-gray-600">
                           {item.instructor}
                         </p>
                       </div>
+
                       <div className="flex flex-col items-end justify-between">
                         <button
                           onClick={() => removeFromCart(item.id)}
@@ -75,6 +119,7 @@ export function ShoppingCartSheet() {
                         >
                           <X className="h-4 w-4" />
                         </button>
+
                         <span className="font-bold">${item.price}</span>
                       </div>
                     </div>
@@ -85,13 +130,20 @@ export function ShoppingCartSheet() {
               <div className="border-t pt-4 mt-4 space-y-4">
                 <div className="flex justify-between items-center">
                   <span className="text-lg font-semibold">Total:</span>
+
                   <span className="text-2xl font-bold text-green-700">
                     ${cartTotal.toFixed(2)}
                   </span>
                 </div>
-                <Button className="w-full bg-green-700 hover:bg-green-800" size="lg">
+
+                <Button
+                  className="w-full bg-green-700 hover:bg-green-800"
+                  size="lg"
+                  onClick={handleCheckout}
+                >
                   Checkout
                 </Button>
+
                 <Button
                   variant="outline"
                   className="w-full"

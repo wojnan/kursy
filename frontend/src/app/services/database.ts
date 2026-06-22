@@ -179,6 +179,28 @@ export async function hasPurchasedCourse(
   return purchases.some((p) => p.course_id === parseInt(courseId));
 }
 
+
+// PAYMENT OPERATIONS
+
+export interface CheckoutSessionRequest {
+  userId: number;
+  courseId: string;
+  courseTitle: string;
+  amount: number;
+}
+
+export interface CheckoutSessionResponse {
+  url: string;
+}
+
+export async function createCheckoutSession(
+  data: CheckoutSessionRequest
+): Promise<CheckoutSessionResponse> {
+  return apiRequest<CheckoutSessionResponse>('/payments/checkout', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
 // PROGRESS TRACKING OPERATIONS
 
 export interface UserProgress {

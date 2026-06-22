@@ -7,6 +7,8 @@ import { CoursePlayer } from './pages/CoursePlayer';
 import { Dashboard } from './pages/Dashboard';
 import { Profile } from './pages/Profile';
 import { NotFound } from './pages/NotFound';
+import { PaymentSuccess } from './pages/PaymentSuccess';
+import { PaymentCancel } from './pages/PaymentCancel';
 
 export const router = createBrowserRouter([
   {
@@ -19,6 +21,8 @@ export const router = createBrowserRouter([
       { path: 'learn/:id', Component: CoursePlayer },
       { path: 'dashboard', Component: Dashboard },
       { path: 'profile', Component: Profile },
+      { path: 'payment-success', Component: PaymentSuccess },
+      { path: 'payment-cancel', Component: PaymentCancel },
       { path: '*', Component: NotFound },
     ],
   },
