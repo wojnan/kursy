@@ -6,6 +6,7 @@ import {
   LogIn,
   LogOut,
   UserCircle,
+  ShieldCheck,
 } from 'lucide-react';
 
 import { Button } from './ui/button';
@@ -21,6 +22,7 @@ export function Header() {
   const [showUserMenu, setShowUserMenu] = useState(false);
 
   const isActive = (path: string) => location.pathname === path;
+  const isAdmin = user?.role === 'ADMIN';
 
   const navLinks = [
     { path: '/', label: 'Home' },
@@ -48,6 +50,16 @@ export function Header() {
                 {link.label}
               </Link>
             ))}
+
+            {isAdmin && (
+              <Link
+                to="/admin/payments"
+                className="transition-colors text-gray-700"
+                style={isActive('/admin/payments') ? { color: '#4F772D' } : {}}
+              >
+                Admin Payments
+              </Link>
+            )}
           </nav>
         </div>
 
@@ -90,6 +102,11 @@ export function Header() {
                     <div className="px-4 py-3 border-b">
                       <p className="font-medium">{user.name}</p>
                       <p className="text-sm text-gray-600">{user.email}</p>
+                      {isAdmin && (
+                        <p className="text-xs text-green-700 mt-1 font-medium">
+                          ADMIN
+                        </p>
+                      )}
                     </div>
 
                     <div className="py-1">
@@ -110,6 +127,17 @@ export function Header() {
                         <BookOpen className="h-4 w-4" />
                         <span>My Learning</span>
                       </Link>
+
+                      {isAdmin && (
+                        <Link
+                          to="/admin/payments"
+                          onClick={() => setShowUserMenu(false)}
+                          className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 transition-colors"
+                        >
+                          <ShieldCheck className="h-4 w-4" />
+                          <span>Admin Payments</span>
+                        </Link>
+                      )}
                     </div>
 
                     <div className="border-t py-1">
@@ -159,6 +187,19 @@ export function Header() {
                   </Link>
                 ))}
 
+                {isAdmin && (
+                  <Link
+                    to="/admin/payments"
+                    className={`text-lg transition-colors hover:text-green-700 ${
+                      isActive('/admin/payments')
+                        ? 'text-green-700'
+                        : 'text-gray-700'
+                    }`}
+                  >
+                    Admin Payments
+                  </Link>
+                )}
+
                 <div className="relative mt-4">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <Input
@@ -182,6 +223,11 @@ export function Header() {
                         <div>
                           <p className="font-medium text-sm">{user.name}</p>
                           <p className="text-xs text-gray-600">{user.email}</p>
+                          {isAdmin && (
+                            <p className="text-xs text-green-700 font-medium">
+                              ADMIN
+                            </p>
+                          )}
                         </div>
                       </div>
 
@@ -191,6 +237,18 @@ export function Header() {
                           My Profile
                         </Button>
                       </Link>
+
+                      {isAdmin && (
+                        <Link to="/admin/payments">
+                          <Button
+                            variant="outline"
+                            className="w-full mb-2 gap-2"
+                          >
+                            <ShieldCheck className="h-4 w-4" />
+                            Admin Payments
+                          </Button>
+                        </Link>
+                      )}
 
                       <Button
                         variant="outline"

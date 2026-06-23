@@ -5,8 +5,6 @@ import java.util.List;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import org.springframework.http.HttpMethod;
-
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
@@ -19,7 +17,6 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-
 @Configuration
 public class SecurityConfig {
 
@@ -30,10 +27,14 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+
         http
                 .cors(Customizer.withDefaults())
                 .csrf(csrf -> csrf.disable())
+
                 .authorizeHttpRequests(auth -> auth
+
+                        // PUBLIC ENDPOINTS
                         .requestMatchers(
                                 "/",
                                 "/login/**",
@@ -44,24 +45,33 @@ public class SecurityConfig {
                                 "/api/lessons/**",
                                 "/api/quizzes/**",
 
+                                "/api/payments/checkout",
+                                "/api/payments/confirm-stripe",
+                                "/api/payments/offline",
+
                                 "/courses/**"
                         ).permitAll()
 
+                        // AUTHENTICATED USER ENDPOINTS
                         .requestMatchers(
                                 "/users/me",
                                 "/api/cart/**",
                                 "/api/purchases/**",
-                                "/api/payments/**",
                                 "/api/progress/**",
                                 "/api/section-quizzes/**"
                         ).authenticated()
 
+                        // EVERYTHING ELSE REQUIRES LOGIN
                         .anyRequest().authenticated()
+                )
 
-                )
                 .oauth2Login(oauth2 -> oauth2
-                        .defaultSuccessUrl("http://localhost:5173/dashboard", true)
+                        .defaultSuccessUrl(
+                                "http://localhost:5173/dashboard",
+                                true
+                        )
                 )
+
                 .logout(logout -> logout
                         .logoutSuccessUrl("http://localhost:5173")
                 );
@@ -80,7 +90,13 @@ public class SecurityConfig {
         );
 
         configuration.setAllowedMethods(
-                List.of("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                List.of(
+                        "GET",
+                        "POST",
+                        "PUT",
+                        "DELETE",
+                        "OPTIONS"
+                )
         );
 
         configuration.setAllowedHeaders(

@@ -7,10 +7,13 @@ import com.stripe.param.checkout.SessionCreateParams;
 import org.example.backend.entity.Payment;
 import org.example.backend.entity.PaymentMethod;
 import org.example.backend.entity.PaymentStatus;
+import org.example.backend.entity.User;
 import org.example.backend.repository.PaymentRepository;
+import org.example.backend.repository.UserRepository;
 import org.example.backend.service.UserPurchaseService;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -23,6 +26,7 @@ public class PaymentController {
 
     private final PaymentRepository paymentRepository;
     private final UserPurchaseService userPurchaseService;
+    private final UserRepository userRepository;
 
     @Value("${stripe.secret-key}")
     private String stripeSecretKey;
@@ -35,10 +39,12 @@ public class PaymentController {
 
     public PaymentController(
             PaymentRepository paymentRepository,
-            UserPurchaseService userPurchaseService
+            UserPurchaseService userPurchaseService,
+            UserRepository userRepository
     ) {
         this.paymentRepository = paymentRepository;
         this.userPurchaseService = userPurchaseService;
+        this.userRepository = userRepository;
     }
 
     @PostMapping("/checkout")
@@ -138,7 +144,11 @@ public class PaymentController {
     }
 
     @GetMapping("/admin/pending")
-    public List<Payment> getPendingOfflinePayments() {
+    public List<Payment> getPendingOfflinePayments(
+            OAuth2AuthenticationToken authentication
+    ) {
+        requireAdmin(authentication);
+
         return paymentRepository.findByStatus(
                 PaymentStatus.AWAITING_ADMIN_APPROVAL
         );
@@ -146,10 +156,17 @@ public class PaymentController {
 
     @PostMapping("/admin/{id}/approve")
     public Payment approveOfflinePayment(
-            @PathVariable Long id
+            @PathVariable Long id,
+            OAuth2AuthenticationToken authentication
     ) {
+        requireAdmin(authentication);
+
         Payment payment = paymentRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Payment not found"));
+
+        if (payment.getStatus() == PaymentStatus.PAID) {
+            return payment;
+        }
 
         payment.setStatus(PaymentStatus.PAID);
 
@@ -167,8 +184,11 @@ public class PaymentController {
     @PostMapping("/admin/{id}/reject")
     public Payment rejectOfflinePayment(
             @PathVariable Long id,
-            @RequestBody(required = false) RejectPaymentRequest request
+            @RequestBody(required = false) RejectPaymentRequest request,
+            OAuth2AuthenticationToken authentication
     ) {
+        requireAdmin(authentication);
+
         Payment payment = paymentRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Payment not found"));
 
@@ -179,6 +199,21 @@ public class PaymentController {
         }
 
         return paymentRepository.save(payment);
+    }
+
+    private void requireAdmin(OAuth2AuthenticationToken authentication) {
+        if (authentication == null) {
+            throw new RuntimeException("Admin login required");
+        }
+
+        String email = authentication.getPrincipal().getAttribute("email");
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (!"ADMIN".equals(user.getRole())) {
+            throw new RuntimeException("Admin access required");
+        }
     }
 
     public record CheckoutRequest(

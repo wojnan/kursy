@@ -12,6 +12,7 @@ export interface User {
   email: string;
   avatarUrl?: string;
   createdAt?: string;
+  role?: 'USER' | 'ADMIN';
 }
 
 interface AuthContextType {

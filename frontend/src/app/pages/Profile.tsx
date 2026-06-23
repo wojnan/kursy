@@ -6,36 +6,45 @@ import {
   User,
   Mail,
   Calendar,
-  Award,
   BookOpen,
-  Clock,
   Settings,
-  LogOut
+  LogOut,
 } from 'lucide-react';
 
-// ✅ NOW USING DATABASE (API) INSTEAD OF MOCK DATA
-import type { Course } from '../services/database';
-import { getAllCourses, getCourseSections } from '../services/database';
+import type { Course, Purchase } from '../services/database';
+import { getAllCourses, getUserPurchases } from '../services/database';
 import { useEffect, useState } from 'react';
 
 export function Profile() {
   const { user, logout } = useAuth();
 
   const [courses, setCourses] = useState<Course[]>([]);
+  const [purchases, setPurchases] = useState<Purchase[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Load courses from backend
   useEffect(() => {
-    const loadCourses = async () => {
+    const loadProfileData = async () => {
+      if (!user) return;
+
       try {
-        const data = await getAllCourses();
-        setCourses(data);
+        setLoading(true);
+
+        const [courseData, purchaseData] = await Promise.all([
+          getAllCourses(),
+          getUserPurchases(user.id),
+        ]);
+
+        setCourses(courseData);
+        setPurchases(purchaseData);
       } catch (err) {
-        console.error('Failed to load courses', err);
+        console.error('Failed to load profile data', err);
+      } finally {
+        setLoading(false);
       }
     };
 
-    loadCourses();
-  }, []);
+    loadProfileData();
+  }, [user?.id]);
 
   if (!user) {
     return (
@@ -56,36 +65,29 @@ export function Profile() {
     );
   }
 
-  // fallback-safe helper
-  const enrolledCourses = courses.slice(0, 3);
+  const purchasedCourseIds = new Set(
+    purchases.map((purchase) =>
+      String(purchase.courseId ?? purchase.course_id)
+    )
+  );
 
-  const getProgress = (courseId: string) => {
-    const saved = localStorage.getItem(`course-${courseId}-progress`);
-    if (!saved) return 0;
+  const enrolledCourses = courses.filter((course) =>
+    purchasedCourseIds.has(String(course.id))
+  );
 
-    const completedSections: string[] = JSON.parse(saved);
-
-    // NOTE: we fetch sections lazily via localStorage fallback only
-    // (real backend progress would replace this later)
-    const fakeTotalSections = 5;
-
-    return Math.round((completedSections.length / fakeTotalSections) * 100);
-  };
-
-  const completedCourses = enrolledCourses.filter(
-    (course) => getProgress(course.id) === 100
-  ).length;
+  const completedCourses = 0;
 
   const totalHours = enrolledCourses.reduce((acc, course) => {
-    const hours = Number(course.duration);
-    return acc + (isNaN(hours) ? 0 : hours);
+    const match = String(course.duration).match(/\d+/);
+    const hours = match ? Number(match[0]) : 0;
+    return acc + hours;
   }, 0);
 
-  const joinDate = new Date(user.created_at || Date.now()).toLocaleDateString(
+  const joinDate = new Date(user.createdAt || Date.now()).toLocaleDateString(
     'en-US',
     {
       month: 'long',
-      year: 'numeric'
+      year: 'numeric',
     }
   );
 
@@ -100,7 +102,6 @@ export function Profile() {
 
       <div className="container px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* PROFILE CARD */}
           <div className="lg:col-span-1">
             <Card>
               <CardContent className="p-6">
@@ -113,13 +114,16 @@ export function Profile() {
                   </div>
 
                   <h2 className="text-2xl font-bold mb-1">{user.name}</h2>
-                  <p className="text-gray-600 mb-6">LearnHub Student</p>
+                  <p className="text-gray-600 mb-6">
+                    {user.role === 'ADMIN' ? 'LearnHub Admin' : 'LearnHub Student'}
+                  </p>
 
                   <div className="w-full space-y-3 mb-6">
                     <div className="flex items-center gap-3 text-sm text-gray-600">
                       <Mail className="h-4 w-4" />
                       <span>{user.email}</span>
                     </div>
+
                     <div className="flex items-center gap-3 text-sm text-gray-600">
                       <Calendar className="h-4 w-4" />
                       <span>Joined {joinDate}</span>
@@ -144,7 +148,6 @@ export function Profile() {
             </Card>
           </div>
 
-          {/* STATS */}
           <div className="lg:col-span-2">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
               <Card>
@@ -169,44 +172,66 @@ export function Profile() {
               </Card>
             </div>
 
-            {/* COURSES FROM API */}
             <Card>
               <CardHeader>
                 <CardTitle>Your Courses</CardTitle>
               </CardHeader>
 
               <CardContent>
-                <div className="space-y-4">
-                  {enrolledCourses.map((course) => (
-                    <div
-                      key={course.id}
-                      className="flex justify-between items-center border-b pb-3"
-                    >
-                      <div>
-                        <p className="font-medium">{course.title}</p>
-                        <p className="text-sm text-gray-600">
-                          {getProgress(course.id)}% complete
-                        </p>
-                      </div>
+                {loading ? (
+                  <p className="text-gray-600">Loading your courses...</p>
+                ) : enrolledCourses.length === 0 ? (
+                  <div className="text-center py-8">
+                    <BookOpen className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                    <p className="text-gray-600 mb-4">
+                      You have not purchased any courses yet.
+                    </p>
+                    <Link to="/courses">
+                      <Button>Browse Courses</Button>
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {enrolledCourses.map((course) => (
+                      <div
+                        key={course.id}
+                        className="flex justify-between items-center border-b pb-3"
+                      >
+                        <div>
+                          <p className="font-medium">{course.title}</p>
+                          <p className="text-sm text-gray-600">
+                            Purchased
+                          </p>
+                        </div>
 
-                      <Link to={`/learn/${course.id}`}>
-                        <Button size="sm">Continue</Button>
-                      </Link>
-                    </div>
-                  ))}
-                </div>
+                        <Link to={`/learn/${course.id}`}>
+                          <Button size="sm">Continue</Button>
+                        </Link>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
 
-            {/* ACTIVITY (STATIC FOR NOW) */}
             <Card className="mt-6">
               <CardHeader>
                 <CardTitle>Recent Activity</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-gray-600 text-sm">
-                  Activity tracking will be loaded from backend later.
-                </p>
+                {purchases.length === 0 ? (
+                  <p className="text-gray-600 text-sm">
+                    No purchase activity yet.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {purchases.map((purchase) => (
+                      <div key={purchase.id} className="text-sm text-gray-600">
+                        Purchased course #{purchase.courseId ?? purchase.course_id}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

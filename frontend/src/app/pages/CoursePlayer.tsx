@@ -1,16 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router';
 
-import type {
-  Course,
-  Section,
-  SectionQuiz
-} from '../services/database';
+import type { Course, Section, SectionQuiz } from '../services/database';
 
 import {
   getCourseById,
   getCourseSections,
-  getSectionQuiz
+  getSectionQuiz,
+  getUserProgress,
+  markSectionComplete,
 } from '../services/database';
 
 import { Button } from '../components/ui/button';
@@ -18,13 +16,7 @@ import { Quiz } from '../components/Quiz';
 import { useAuth } from '../contexts/AuthContext';
 import { usePurchase } from '../contexts/PurchaseContext';
 
-import {
-  CheckCircle,
-  List,
-  X,
-  Lock
-} from 'lucide-react';
-
+import { CheckCircle, List, X, Lock } from 'lucide-react';
 import { Progress } from '../components/ui/progress';
 
 export function CoursePlayer() {
@@ -40,7 +32,7 @@ export function CoursePlayer() {
 
   const courseId = id;
 
-  const { isAuthenticated, loginWithGoogle } = useAuth();
+  const { user, isAuthenticated, loginWithGoogle } = useAuth();
   const { hasPurchased } = usePurchase();
 
   const [course, setCourse] = useState<Course | null>(null);
@@ -48,6 +40,9 @@ export function CoursePlayer() {
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
   const [sectionQuiz, setSectionQuiz] = useState<SectionQuiz[]>([]);
   const [showSidebar, setShowSidebar] = useState(true);
+  const [completedSections, setCompletedSections] = useState<Set<string>>(
+    new Set()
+  );
 
   const isPurchased = hasPurchased(courseId);
 
@@ -57,46 +52,86 @@ export function CoursePlayer() {
   };
 
   useEffect(() => {
-    async function load() {
-      try {
-        const [c, s] = await Promise.all([
-          getCourseById(courseId),
-          getCourseSections(courseId),
-        ]);
-
-        setCourse(c);
-        setSections(Array.isArray(s) ? s : []);
-      } catch (err) {
-        console.error('Failed loading course player:', err);
-      }
-    }
-
-    load();
-  }, [courseId]);
-
-  useEffect(() => {
-  async function loadQuiz() {
-    if (!sections[currentSectionIndex]) {
-      setSectionQuiz([]);
-      return;
-    }
-
+  async function load() {
     try {
-      const quiz = await getSectionQuiz(
-        sections[currentSectionIndex].id
-      );
+      const [c, s] = await Promise.all([
+        getCourseById(courseId),
+        getCourseSections(courseId),
+      ]);
 
-      console.log('QUIZ RESPONSE:', quiz);
+      const loadedSections = Array.isArray(s) ? s : [];
 
-      setSectionQuiz(Array.isArray(quiz) ? quiz : []);
+      setCourse(c);
+      setSections(loadedSections);
+
+      if (user && loadedSections.length > 0) {
+        const progress = await getUserProgress(user.id);
+
+        const completedSectionIds = new Set(
+          progress
+            .map((p) => p.sectionId ?? p.section_id)
+            .filter(Boolean)
+            .map(String)
+        );
+
+        let lastCompletedIndex = -1;
+
+        loadedSections.forEach((section, index) => {
+          if (completedSectionIds.has(String(section.id))) {
+            lastCompletedIndex = index;
+          }
+        });
+
+        if (
+          lastCompletedIndex >= 0 &&
+          lastCompletedIndex < loadedSections.length - 1
+        ) {
+          setCurrentSectionIndex(lastCompletedIndex + 1);
+        }
+
+        const completedSet = new Set<string>();
+
+        loadedSections.forEach((section) => {
+          if (completedSectionIds.has(String(section.id))) {
+            completedSet.add(String(section.id));
+          }
+        });
+
+        setCompletedSections(completedSet);
+      }
     } catch (err) {
-      console.error('Failed loading quiz:', err);
-      setSectionQuiz([]);
+      console.error('Failed loading course player:', err);
     }
   }
 
-  loadQuiz();
-}, [currentSectionIndex, sections]);
+  load();
+}, [courseId, user]);
+
+  useEffect(() => {
+    async function loadQuiz() {
+      if (!sections[currentSectionIndex]) {
+        setSectionQuiz([]);
+        return;
+      }
+
+      try {
+        const quiz = await getSectionQuiz(sections[currentSectionIndex].id);
+        setSectionQuiz(Array.isArray(quiz) ? quiz : []);
+      } catch (err) {
+        console.error('Failed loading quiz:', err);
+        setSectionQuiz([]);
+      }
+    }
+
+    loadQuiz();
+  }, [currentSectionIndex, sections]);
+
+  useEffect(() => {
+  window.scrollTo({
+    top: 0,
+    behavior: 'smooth',
+  });
+}, [currentSectionIndex]);
 
   const currentSection = sections[currentSectionIndex];
 
@@ -110,6 +145,22 @@ export function CoursePlayer() {
 
   const totalSections = sections.length;
 
+  const saveCurrentSectionProgress = async () => {
+    if (!user || !currentSection) return;
+
+    try {
+      await markSectionComplete(user.id, currentSection.id);
+
+      setCompletedSections((prev) => {
+        const updated = new Set(prev);
+        updated.add(currentSection.id);
+        return updated;
+      });
+    } catch (err) {
+      console.error('Failed to save progress:', err);
+    }
+  };
+
   const handleLockedAccess = () => {
     if (!isAuthenticated) {
       loginWithGoogle();
@@ -119,7 +170,9 @@ export function CoursePlayer() {
     alert('You need to purchase this course to access this section.');
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
+    await saveCurrentSectionProgress();
+
     if (currentSectionIndex >= sections.length - 1) return;
 
     const next = currentSectionIndex + 1;
@@ -145,6 +198,10 @@ export function CoursePlayer() {
     }
   };
 
+  const courseProgress = totalSections
+    ? Math.round((completedSections.size / totalSections) * 100)
+    : 0;
+
   return (
     <div className="min-h-screen bg-gray-50 flex">
       <div
@@ -154,18 +211,12 @@ export function CoursePlayer() {
       >
         <div className="p-4 border-b">
           <h2 className="font-bold">{course.title}</h2>
-
-          <Progress
-            value={
-              totalSections
-                ? ((currentSectionIndex + 1) / totalSections) * 100
-                : 0
-            }
-          />
+          <Progress value={courseProgress} />
         </div>
 
         {sections.map((section, i) => {
           const locked = !canAccessSection(i);
+          const completed = completedSections.has(section.id);
 
           return (
             <button
@@ -176,8 +227,10 @@ export function CoursePlayer() {
               <div className="flex gap-2 items-center">
                 {locked ? (
                   <Lock className="h-4 w-4 text-gray-400" />
-                ) : (
+                ) : completed ? (
                   <CheckCircle className="h-4 w-4 text-green-600" />
+                ) : (
+                  <CheckCircle className="h-4 w-4 text-gray-300" />
                 )}
 
                 Section {i + 1}: {section.title}
@@ -199,42 +252,28 @@ export function CoursePlayer() {
         </div>
 
         <div className="p-8 max-w-4xl mx-auto w-full">
-          <h1 className="text-3xl font-bold mb-6">
-            {currentSection.title}
-          </h1>
+          <h1 className="text-3xl font-bold mb-6">{currentSection.title}</h1>
 
           {(currentSection.lessons || []).map((lesson: any) => (
             <div key={lesson.id} className="mb-10">
               <h2 className="text-xl font-bold">{lesson.title}</h2>
 
-              <p className="text-sm text-gray-500">
-                {lesson.duration}
-              </p>
+              <p className="text-sm text-gray-500">{lesson.duration}</p>
 
               {(lesson.content || []).map((block: any) => {
                 const type =
-                  block.contentType ||
-                  block.content_type ||
-                  block.type;
+                  block.contentType || block.content_type || block.type;
 
                 const value =
-                  block.contentValue ||
-                  block.content_value ||
-                  block.value;
+                  block.contentValue || block.content_value || block.value;
 
                 return (
                   <div key={block.id ?? `${type}-${value}`} className="mt-4">
                     {type === 'heading' && (
-                      <h3 className="text-lg font-semibold">
-                        {value}
-                      </h3>
+                      <h3 className="text-lg font-semibold">{value}</h3>
                     )}
 
-                    {type === 'text' && (
-                      <p className="leading-7">
-                        {value}
-                      </p>
-                    )}
+                    {type === 'text' && <p className="leading-7">{value}</p>}
 
                     {type === 'code' && (
                       <pre className="bg-black text-white p-4 rounded overflow-auto">
@@ -258,7 +297,9 @@ export function CoursePlayer() {
                               items = value
                                 .replace(/^\[|\]$/g, '')
                                 .split(',')
-                                .map((item) => item.replace(/^"|"$/g, '').trim());
+                                .map((item) =>
+                                  item.replace(/^"|"$/g, '').trim()
+                                );
                             }
                           }
 
@@ -277,16 +318,13 @@ export function CoursePlayer() {
           {sectionQuiz.map((quiz) => (
             <Quiz
               key={quiz.id}
-              title={quiz.section_title || 'Section Quiz'}
+              title={quiz.sectionTitle || quiz.section_title || 'Section Quiz'}
               questions={quiz.questions || []}
             />
           ))}
 
           <div className="flex justify-between mt-10">
-            <Button
-              onClick={handlePrev}
-              disabled={currentSectionIndex === 0}
-            >
+            <Button onClick={handlePrev} disabled={currentSectionIndex === 0}>
               Previous
             </Button>
 

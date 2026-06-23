@@ -9,6 +9,7 @@ import { Profile } from './pages/Profile';
 import { NotFound } from './pages/NotFound';
 import { PaymentSuccess } from './pages/PaymentSuccess';
 import { PaymentCancel } from './pages/PaymentCancel';
+import { AdminPayments } from './pages/AdminPayments';
 
 export const router = createBrowserRouter([
   {
@@ -23,6 +24,7 @@ export const router = createBrowserRouter([
       { path: 'profile', Component: Profile },
       { path: 'payment-success', Component: PaymentSuccess },
       { path: 'payment-cancel', Component: PaymentCancel },
+      { path: 'admin/payments', Component: AdminPayments },
       { path: '*', Component: NotFound },
     ],
   },

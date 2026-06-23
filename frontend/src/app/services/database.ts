@@ -1,6 +1,9 @@
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || 'http://localhost:8081/api';
 
+const BACKEND_BASE_URL =
+  import.meta.env.VITE_BACKEND_URL || 'http://localhost:8081';
+
 async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
@@ -29,6 +32,31 @@ async function apiRequest<T>(
     console.error(`Database request failed for ${endpoint}:`, error);
     throw error;
   }
+}
+
+async function backendRequest<T>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<T> {
+  const response = await fetch(`${BACKEND_BASE_URL}${endpoint}`, {
+    ...options,
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText || `API Error: ${response.status}`);
+  }
+
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  return response.json();
 }
 
 // COURSE OPERATIONS
@@ -114,14 +142,17 @@ export interface QuizQuestion {
 
 export interface FinalQuiz {
   id: number;
-  course_id: number;
+  course_id?: number;
+  courseId?: number;
   questions: QuizQuestion[];
 }
 
 export interface SectionQuiz {
   id: number;
-  section_id: number;
-  section_title: string;
+  section_id?: number;
+  sectionId?: number;
+  section_title?: string;
+  sectionTitle?: string;
   questions: QuizQuestion[];
 }
 
@@ -141,24 +172,29 @@ export interface User {
   name: string;
   avatarUrl?: string;
   createdAt?: string;
+  role?: 'USER' | 'ADMIN';
 }
 
 export async function getCurrentUser(): Promise<User> {
-  return apiRequest<User>('/../users/me');
+  return backendRequest<User>('/users/me');
 }
 
 // PURCHASE OPERATIONS
 
 export interface Purchase {
   id: number;
-  user_id: number;
-  course_id: number;
-  purchase_date: string;
-  amount_paid: number;
+  userId?: number;
+  user_id?: number;
+  courseId?: number;
+  course_id?: number;
+  purchaseDate?: string;
+  purchase_date?: string;
+  amountPaid?: number;
+  amount_paid?: number;
 }
 
 export async function getUserPurchases(userId: number): Promise<Purchase[]> {
-  return apiRequest<Purchase[]>(`/users/${userId}/purchases`);
+  return apiRequest<Purchase[]>(`/purchases/user/${userId}`);
 }
 
 export async function purchaseCourse(
@@ -167,7 +203,7 @@ export async function purchaseCourse(
 ): Promise<Purchase> {
   return apiRequest<Purchase>('/purchases', {
     method: 'POST',
-    body: JSON.stringify({ user_id: userId, course_id: courseId }),
+    body: JSON.stringify({ userId, courseId }),
   });
 }
 
@@ -176,9 +212,11 @@ export async function hasPurchasedCourse(
   courseId: string
 ): Promise<boolean> {
   const purchases = await getUserPurchases(userId);
-  return purchases.some((p) => p.course_id === parseInt(courseId));
-}
 
+  return purchases.some(
+    (p) => String(p.courseId ?? p.course_id) === courseId
+  );
+}
 
 // PAYMENT OPERATIONS
 
@@ -201,24 +239,64 @@ export async function createCheckoutSession(
     body: JSON.stringify(data),
   });
 }
+
+export async function confirmStripePayment(sessionId: string): Promise<any> {
+  return apiRequest('/payments/confirm-stripe', {
+    method: 'POST',
+    body: JSON.stringify({ sessionId }),
+  });
+}
+
+export async function createOfflinePayment(data: {
+  userId: number;
+  courseId: string;
+  amount: number;
+  note: string;
+}): Promise<any> {
+  return apiRequest('/payments/offline', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function getPendingPayments(): Promise<any[]> {
+  return apiRequest('/payments/admin/pending');
+}
+
+export async function approvePayment(paymentId: number): Promise<any> {
+  return apiRequest(`/payments/admin/${paymentId}/approve`, {
+    method: 'POST',
+  });
+}
+
+export async function rejectPayment(paymentId: number): Promise<any> {
+  return apiRequest(`/payments/admin/${paymentId}/reject`, {
+    method: 'POST',
+  });
+}
+
 // PROGRESS TRACKING OPERATIONS
 
 export interface UserProgress {
   id: number;
-  user_id: number;
+  user_id?: number;
+  userId?: number;
   section_id?: number;
+  sectionId?: number;
   section_quiz_id?: number;
+  sectionQuizId?: number;
   final_quiz_id?: number;
-  completed_at: string;
+  finalQuizId?: number;
+  completed_at?: string;
+  completedAt?: string;
   score?: number;
 }
 
 export async function getUserProgress(
-  userId: number,
-  courseId: string
+  userId: number
 ): Promise<UserProgress[]> {
   return apiRequest<UserProgress[]>(
-    `/users/${userId}/progress?course_id=${courseId}`
+    `/progress/user/${userId}`
   );
 }
 
@@ -226,9 +304,12 @@ export async function markSectionComplete(
   userId: number,
   sectionId: string
 ): Promise<UserProgress> {
-  return apiRequest<UserProgress>('/progress/section', {
+  return apiRequest<UserProgress>('/progress', {
     method: 'POST',
-    body: JSON.stringify({ user_id: userId, section_id: sectionId }),
+    body: JSON.stringify({
+      userId,
+      sectionId: Number(sectionId),
+    }),
   });
 }
 
@@ -241,9 +322,9 @@ export async function submitQuizResults(
   return apiRequest<UserProgress>('/progress/quiz', {
     method: 'POST',
     body: JSON.stringify({
-      user_id: userId,
-      section_quiz_id: sectionQuizId,
-      final_quiz_id: finalQuizId,
+      userId,
+      sectionQuizId,
+      finalQuizId,
       score,
     }),
   });
@@ -253,14 +334,17 @@ export async function submitQuizResults(
 
 export interface CartItem {
   id: number;
-  user_id: number;
-  course_id: number;
-  added_at: string;
+  user_id?: number;
+  userId?: number;
+  course_id?: number;
+  courseId?: number;
+  added_at?: string;
+  addedAt?: string;
   course?: Course;
 }
 
 export async function getCartItems(userId: number): Promise<CartItem[]> {
-  return apiRequest<CartItem[]>(`/users/${userId}/cart`);
+  return backendRequest<CartItem[]>(`/users/${userId}/cart`);
 }
 
 export async function addToCart(
@@ -269,7 +353,7 @@ export async function addToCart(
 ): Promise<CartItem> {
   return apiRequest<CartItem>('/cart', {
     method: 'POST',
-    body: JSON.stringify({ user_id: userId, course_id: courseId }),
+    body: JSON.stringify({ userId, courseId }),
   });
 }
 
@@ -279,12 +363,12 @@ export async function removeFromCart(
 ): Promise<void> {
   return apiRequest<void>(`/cart/${courseId}`, {
     method: 'DELETE',
-    body: JSON.stringify({ user_id: userId }),
+    body: JSON.stringify({ userId }),
   });
 }
 
 export async function clearCart(userId: number): Promise<void> {
-  return apiRequest<void>(`/users/${userId}/cart`, {
+  return backendRequest<void>(`/users/${userId}/cart`, {
     method: 'DELETE',
   });
 }
