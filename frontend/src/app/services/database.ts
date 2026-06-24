@@ -315,14 +315,16 @@ export async function markSectionComplete(
 
 export async function submitQuizResults(
   userId: number,
+  sectionId: number | null,
   sectionQuizId: number | null,
   finalQuizId: number | null,
   score: number
 ): Promise<UserProgress> {
-  return apiRequest<UserProgress>('/progress/quiz', {
+  return apiRequest<UserProgress>('/progress', {
     method: 'POST',
     body: JSON.stringify({
       userId,
+      sectionId,
       sectionQuizId,
       finalQuizId,
       score,

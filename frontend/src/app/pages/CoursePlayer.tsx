@@ -10,6 +10,7 @@ import {
   getSectionQuiz,
   getUserProgress,
   markSectionComplete,
+  submitQuizResults,
 } from '../services/database';
 
 import { Button } from '../components/ui/button';
@@ -527,15 +528,26 @@ export function CoursePlayer() {
                 <h2 className="text-3xl font-bold mb-2">Section Quiz</h2>
 
                 {sectionQuiz.map((quiz) => (
-                  <Quiz
-                    key={quiz.id}
-                    title={
-                      quiz.sectionTitle ||
-                      quiz.section_title ||
-                      `${currentSection.title} Quiz`
-                    }
-                    questions={quiz.questions || []}
-                  />
+                <Quiz
+                  key={quiz.id}
+                  title={
+                    quiz.sectionTitle ||
+                    quiz.section_title ||
+                    `${currentSection.title} Quiz`
+                  }
+                  questions={quiz.questions || []}
+                  onComplete={async (score) => {
+                    if (!user) return;
+
+                    await submitQuizResults(
+                      user.id,
+                      Number(currentSection.id),
+                      quiz.id,
+                      null,
+                      score
+                    );
+                  }}
+                />
                 ))}
               </div>
             )}
@@ -563,6 +575,17 @@ export function CoursePlayer() {
                 <Quiz
                   title={`${course.title} Final Quiz`}
                   questions={finalQuestions}
+                  onComplete={async (score) => {
+                    if (!user) return;
+
+                    await submitQuizResults(
+                      user.id,
+                      null,
+                      null,
+                      Number(course.id),
+                      score
+                    );
+                  }}
                 />
               </div>
             )}
