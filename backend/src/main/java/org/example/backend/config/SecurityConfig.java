@@ -34,7 +34,6 @@ public class SecurityConfig {
 
                 .authorizeHttpRequests(auth -> auth
 
-                        // PUBLIC ENDPOINTS
                         .requestMatchers(
                                 "/",
                                 "/login/**",
@@ -52,7 +51,6 @@ public class SecurityConfig {
                                 "/courses/**"
                         ).permitAll()
 
-                        // AUTHENTICATED USER ENDPOINTS
                         .requestMatchers(
                                 "/users/me",
                                 "/api/cart/**",
@@ -61,7 +59,6 @@ public class SecurityConfig {
                                 "/api/section-quizzes/**"
                         ).authenticated()
 
-                        // EVERYTHING ELSE REQUIRES LOGIN
                         .anyRequest().authenticated()
                 )
 
